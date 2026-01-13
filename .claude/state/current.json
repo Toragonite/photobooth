@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "version": 1,
+    "lastUpdated": "2024-01-13T00:00:00Z",
+    "updatedBy": "system"
+  },
+
+  "orchestrator": {
+    "status": "idle",
+    "activeSubagents": [],
+    "pendingTasks": []
+  },
+
+  "printQueue": {
+    "activeJobs": [],
+    "queuedJobs": [],
+    "circuitBreaker": {
+      "state": "closed",
+      "failureCount": 0,
+      "lastFailureAt": null,
+      "nextRetryAt": null
+    },
+    "statistics": {
+      "todayTotal": 0,
+      "todayCompleted": 0,
+      "todayFailed": 0,
+      "successRate": 100.0
+    }
+  },
+
+  "systemHealth": {
+    "overall": "unknown",
+    "lastCheck": null,
+    "components": {
+      "printer": {
+        "status": "unknown",
+        "cupsStatus": null,
+        "paperLevel": null,
+        "inkLevel": null,
+        "errorCode": null
+      },
+      "camera": {
+        "status": "unknown",
+        "connected": false,
+        "resolution": null,
+        "lastCapture": null
+      },
+      "storage": {
+        "status": "unknown",
+        "totalBytes": 0,
+        "usedBytes": 0,
+        "freeBytes": 0,
+        "percentUsed": 0
+      },
+      "system": {
+        "status": "unknown",
+        "cpuTempCelsius": 0,
+        "memoryPercent": 0,
+        "uptimeSeconds": 0
+      },
+      "network": {
+        "status": "unknown",
+        "wifiApActive": false,
+        "connectedClients": 0,
+        "ssid": "photobooth"
+      }
+    }
+  },
+
+  "activeSessions": {
+    "sessions": [],
+    "totalToday": 0,
+    "completedToday": 0
+  },
+
+  "backgroundTasks": {
+    "running": [],
+    "completed": []
+  }
+}
