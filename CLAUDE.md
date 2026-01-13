@@ -207,6 +207,46 @@ npm run lint --prefix frontend
 
 ---
 
+## Development Agents
+
+| Agent | Phase | Description |
+|-------|-------|-------------|
+| `dev-planner` | Planning | Break down features into implementation tasks |
+| `usecase-resolver` | Planning | Map use case docs to code implementation |
+| `api-implementer` | Development | FastAPI backend following Clean Architecture |
+| `frontend-implementer` | Development | React/TypeScript components |
+| `code-reviewer` | Development | Code quality and security review |
+| `code-quality-resolver` | Pre-PR | Lint, type check, test, coverage validation |
+| `test-runner` | Development | Run and analyze test results |
+| `hardware-debugger` | Development | Pi 5 hardware diagnostics |
+| `maintenance-agent` | Post-impl | Code health, updates, documentation sync |
+
+---
+
+## Additional Commands
+
+| Command | Description |
+|---------|-------------|
+| `/state` | Manage development state and progress |
+| `/pre-pr` | Run pre-PR quality checks |
+| `/usecase` | View use case documentation |
+| `/docs` | Browse project documentation |
+
+---
+
+## State Management
+
+Development progress is tracked in `.claude/state/`:
+- `development.json` - Use case status, component progress, tech debt
+- `context.json` - Session context, recent files
+
+Use case status flow:
+```
+not_started → in_progress → implemented → tested → complete
+```
+
+---
+
 ## Git Workflow
 
 - **Branch naming**: `feature/description`, `fix/description`
