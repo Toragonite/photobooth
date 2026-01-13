@@ -10,11 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ...domain import (
-    Language,
-    PhotoId,
-    SessionStatus,
-)
+from ...domain import Language, PhotoId, SessionStatus
 from ...domain.entities import PhotoSession
 from ...infrastructure.database import PhotoModel, SessionModel, get_db
 from ...infrastructure.services import ImageProcessor, StorageService

@@ -1,0 +1,1 @@
+"""PhotoBooth tests package."""

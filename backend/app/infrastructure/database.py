@@ -3,17 +3,10 @@
 from datetime import datetime
 from typing import AsyncGenerator
 
-from sqlalchemy import (
-    CheckConstraint,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-)
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import (CheckConstraint, Column, DateTime, ForeignKey, Index,
+                        Integer, String, Text)
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 from sqlalchemy.orm import declarative_base, relationship
 
 from ..config import get_settings
@@ -50,6 +43,10 @@ class SessionModel(Base):
     abandoned_at = Column(DateTime, nullable=True)
     composite_path = Column(Text, nullable=True)
 
+    # Cleanup tracking
+    files_cleaned = Column(Integer, nullable=False, default=0)
+    cleaned_at = Column(DateTime, nullable=True)
+
     # Relationships
     photos = relationship(
         "PhotoModel", back_populates="session", cascade="all, delete-orphan"
@@ -63,6 +60,7 @@ class SessionModel(Base):
         CheckConstraint("status IN ('active', 'complete', 'printed', 'abandoned')"),
         Index("idx_sessions_status", "status"),
         Index("idx_sessions_created_at", "created_at"),
+        Index("idx_sessions_files_cleaned", "files_cleaned"),
     )
 
 
@@ -87,7 +85,7 @@ class PhotoModel(Base):
     session = relationship("SessionModel", back_populates="photos")
 
     __table_args__ = (
-        CheckConstraint("index >= 0 AND index <= 3"),
+        CheckConstraint('"index" >= 0 AND "index" <= 3'),
         Index("idx_photos_session_id", "session_id"),
     )
 

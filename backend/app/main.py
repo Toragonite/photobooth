@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .adapters.api import admin, health, print_jobs, session
 from .config import get_settings
 from .infrastructure.database import init_db
+from .infrastructure.scheduler import init_scheduler
 
 settings = get_settings()
 
@@ -32,9 +33,14 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
 
+    # Start scheduler (disabled in debug mode for faster dev restarts)
+    scheduler = init_scheduler(enabled=not settings.debug)
+    scheduler.start()
+
     yield
 
     # Shutdown
+    scheduler.shutdown()
     logger.info("Shutting down application")
 
 
