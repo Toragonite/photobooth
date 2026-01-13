@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Skill(usecase)",
+      "Skill(usecase:*)",
+      "Skill(state)",
+      "Skill(state:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(autoflake:*)",
+      "Bash(isort:*)",
+      "Bash(black:*)",
+      "Bash(flake8:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm install)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prettier:*)",
+      "Bash(git checkout:*)",
+      "Bash(cat:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:*)"
+    ]
+  }
+}
