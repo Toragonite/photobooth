@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "includeCoAuthoredBy": true,
+  "env": {
+    "PROJECT_NAME": "photobooth",
+    "PI_VERSION": "5",
+    "PI_RAM_GB": "8",
+    "STORAGE_GB": "256",
+    "PRINTER_MODEL": "Canon_Selphy_CP1500",
+    "WIFI_SSID": "photobooth",
+    "IMAGE_QUALITY": "95",
+    "MAX_RETRIES": "3"
+  },
+  "permissions": {
+    "allow": [
+      "Skill",
+      "Read(src/**)",
+      "Read(backend/**)",
+      "Read(frontend/**)",
+      "Read(docs/**)",
+      "Read(tests/**)",
+      "Read(.claude/**)",
+      "Read(CLAUDE.md)",
+      "Read(DESIGN.md)",
+      "Read(*.md)",
+      "Read(*.json)",
+      "Read(*.yaml)",
+      "Read(*.yml)",
+      "Write(src/**)",
+      "Write(backend/**)",
+      "Write(frontend/**)",
+      "Write(tests/**)",
+      "Write(docs/**)",
+      "Edit(src/**)",
+      "Edit(backend/**)",
+      "Edit(frontend/**)",
+      "Edit(tests/**)",
+      "Edit(docs/**)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pytest *)",
+      "Bash(git *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(docker compose *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(secrets/**)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo rm -rf *)",
+      "Bash(sudo reboot)",
+      "Bash(sudo poweroff)",
+      "Bash(sudo shutdown *)",
+      "Bash(:(){ :|:& };:)",
+      "Bash(> /dev/sda)",
+      "Bash(dd if=*of=/dev/*)",
+      "Bash(mkfs.*)"
+    ],
+    "ask": [
+      "Bash(sudo *)",
+      "Bash(rm -rf *)",
+      "Bash(systemctl *)",
+      "Edit(docker-compose.yml)",
+      "Edit(Dockerfile*)",
+      "Edit(package.json)",
+      "Edit(requirements.txt)",
+      "Write(docker-compose.yml)",
+      "Write(Dockerfile*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '📷 PhotoBooth Project' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && echo \"📂 Branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'not a git repo')\" && echo \"📊 Status: $(git status --short 2>/dev/null | wc -l) uncommitted changes\" && echo \"💾 Disk: $(df -h . 2>/dev/null | tail -1 | awk '{print $4}') free\" && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -qE '(rm -rf /|rm -rf /\\*|> /dev/sd|mkfs\\.|:(){ :|:& };:)'; then echo 'BLOCKED: Destructive command detected' >&2; exit 2; fi; exit 0",
+            "timeout": 3000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=\"$CLAUDE_FILE_PATH\"; if [[ \"$FILE\" == *.py ]]; then black \"$FILE\" 2>/dev/null || true; isort \"$FILE\" 2>/dev/null || true; fi; if [[ \"$FILE\" == *.ts || \"$FILE\" == *.tsx || \"$FILE\" == *.js || \"$FILE\" == *.jsx ]]; then npx prettier --write \"$FILE\" 2>/dev/null || true; fi",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '' && echo '📋 Session Summary' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && CHANGES=$(git status --short 2>/dev/null | wc -l); if [ \"$CHANGES\" -gt 0 ]; then echo \"⚠️  $CHANGES uncommitted changes:\"; git status --short 2>/dev/null | head -10; else echo '✅ Working directory clean'; fi && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
