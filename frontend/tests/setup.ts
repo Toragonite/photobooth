@@ -4,12 +4,25 @@
  */
 
 import '@testing-library/jest-dom'
-import { afterEach, vi } from 'vitest'
+import { afterEach, afterAll, beforeAll, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { server, resetStores } from './mocks/server'
 
-// Cleanup after each test
+// Start MSW server before all tests
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'bypass' })
+})
+
+// Reset handlers and stores after each test
 afterEach(() => {
   cleanup()
+  server.resetHandlers()
+  resetStores()
+})
+
+// Clean up after all tests
+afterAll(() => {
+  server.close()
 })
 
 // Mock window.matchMedia for responsive tests
@@ -36,6 +49,17 @@ const localStorageMock = {
 }
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+})
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
 })
 
 // Mock navigator.mediaDevices for camera tests

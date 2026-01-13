@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-01-13T22:00:00Z",
+  "lastUpdated": "2026-01-14T00:00:00Z",
   "currentFocus": {
     "useCase": null,
     "component": "testing",
-    "description": "All use cases implemented. Testing and deployment remaining."
+    "description": "Deployment scripts complete. Frontend test coverage in progress."
   },
   "useCases": {
     "UC-001": {
@@ -285,8 +285,8 @@
       }
     },
     "infrastructure": {
-      "progress": 60,
-      "lastTouched": "2026-01-13T22:00:00Z",
+      "progress": 100,
+      "lastTouched": "2026-01-14T01:00:00Z",
       "modules": {
         "docker": {
           "progress": 100,
@@ -298,14 +298,26 @@
           ]
         },
         "systemd": {
-          "progress": 0,
-          "files": []
+          "progress": 100,
+          "files": [
+            "scripts/systemd/photobooth.service",
+            "scripts/systemd/photobooth-watchdog.service",
+            "scripts/systemd/photobooth-watchdog.timer",
+            "scripts/systemd/photobooth-backup.service",
+            "scripts/systemd/photobooth-backup.timer",
+            "scripts/install-systemd.sh"
+          ]
         },
         "networking": {
-          "progress": 30,
+          "progress": 100,
           "files": [
             "scripts/generate-ssl.sh",
-            ".env.example"
+            ".env.example",
+            "scripts/network/setup-network.sh",
+            "scripts/network/test-network.sh",
+            "scripts/network/reset-network.sh",
+            "scripts/network/hostapd.conf.template",
+            "scripts/network/dnsmasq.conf.template"
           ]
         }
       }
@@ -331,7 +343,7 @@
       "severity": "medium",
       "description": "Phase 6 deployment scripts not created",
       "createdAt": "2026-01-13T00:00:00Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-01-14T01:00:00Z"
     },
     {
       "id": "TD-004",
@@ -344,6 +356,6 @@
   "blockers": [],
   "testCoverage": {
     "backend": { "unit": 75, "integration": 24 },
-    "frontend": { "unit": 10, "e2e": 0 }
+    "frontend": { "unit": 45, "e2e": 0 }
   }
 }
