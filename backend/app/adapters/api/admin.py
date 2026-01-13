@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -12,16 +13,15 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import get_settings
-from ...infrastructure.database import (
-    AdminSessionModel,
-    JobEventModel,
-    LoginAttemptModel,
-    PrintJobModel,
-    SessionModel,
-    SettingsModel,
-    get_db,
-)
-from ...infrastructure.services import PrinterService, StorageService
+from ...infrastructure.database import (AdminSessionModel, JobEventModel,
+                                        LoginAttemptModel, PrintJobModel,
+                                        SessionModel, SettingsModel, get_db)
+from ...infrastructure.services import (CleanupService, ExportType, LogLevel,
+                                        LogSource, LogViewerService,
+                                        PhotoExportService, PrinterService,
+                                        ServiceName, StorageService,
+                                        SystemService, TestPatternGenerator,
+                                        TestPatternType)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -450,59 +450,682 @@ async def get_storage_details(
 
 @router.post("/test-print", response_model=AdminResponse)
 async def test_print(
+    pattern_type: str = "full",
     admin: dict = Depends(get_admin_user),
 ):
-    """Send test print."""
+    """Send test print with specified pattern.
+
+    Args:
+        pattern_type: Type of test pattern (color_bars, alignment, gradient, full)
+    """
     printer_service = PrinterService()
+    test_generator = TestPatternGenerator()
 
     if not printer_service.is_available():
         raise HTTPException(status_code=503, detail="Printer is offline")
 
-    # For now, just return success (would generate test pattern)
-    logger.info("Test print requested")
+    # Validate and convert pattern type
+    try:
+        pattern = TestPatternType(pattern_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid pattern type. Must be one of: {[p.value for p in TestPatternType]}",
+        )
+
+    # Generate test pattern
+    logger.info(f"Test print requested with pattern: {pattern_type}")
+    test_image_path = test_generator.generate(pattern)
+
+    if not test_image_path:
+        raise HTTPException(status_code=500, detail="Failed to generate test pattern")
+
+    # Submit to printer
+    result = await printer_service.print_file(test_image_path, copies=1)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Print failed: {result.error_message or result.error_code}",
+        )
 
     return AdminResponse(
         success=True,
         data={
             "message": "Test print submitted",
+            "pattern_type": pattern_type,
+            "job_id": result.job_id,
+            "image_path": test_image_path,
             "mock_mode": printer_service.mock_mode,
         },
     )
 
 
-@router.get("/logs", response_model=AdminResponse)
-async def get_logs(
-    level: str = "all",
-    limit: int = 100,
+@router.get("/test-print/patterns", response_model=AdminResponse)
+async def get_test_patterns(
     admin: dict = Depends(get_admin_user),
 ):
-    """Get system logs."""
-    # For now, return empty (would read from log file)
+    """Get available test pattern types."""
+    patterns = [
+        {
+            "id": TestPatternType.COLOR_BARS.value,
+            "name": "Color Bars",
+            "description": "SMPTE-style color bars for color accuracy testing",
+        },
+        {
+            "id": TestPatternType.ALIGNMENT.value,
+            "name": "Alignment Grid",
+            "description": "Grid pattern with crosshairs for alignment testing",
+        },
+        {
+            "id": TestPatternType.GRADIENT.value,
+            "name": "Gradient",
+            "description": "Grayscale and RGB gradients for tone reproduction",
+        },
+        {
+            "id": TestPatternType.FULL.value,
+            "name": "Full Test",
+            "description": "Complete test pattern with all elements",
+        },
+    ]
+
+    return AdminResponse(
+        success=True,
+        data={"patterns": patterns},
+    )
+
+
+@router.get("/logs", response_model=AdminResponse)
+async def get_logs(
+    source: str = "app",
+    level: str = "all",
+    lines: int = 100,
+    search: Optional[str] = None,
+    offset: int = 0,
+    admin: dict = Depends(get_admin_user),
+):
+    """Get system logs.
+
+    Args:
+        source: Log source (app, print, cups, system)
+        level: Minimum log level (debug, info, warning, error, critical, all)
+        lines: Number of lines to return
+        search: Optional search term
+        offset: Offset for pagination
+    """
+    log_viewer = LogViewerService()
+
+    # Validate source
+    try:
+        log_source = LogSource(source)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid log source. Must be one of: {[s.value for s in LogSource]}",
+        )
+
+    # Validate level
+    try:
+        log_level = LogLevel(level)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid log level. Must be one of: {[lvl.value for lvl in LogLevel]}",
+        )
+
+    result = log_viewer.get_logs(
+        source=log_source,
+        level=log_level,
+        lines=min(lines, 1000),
+        search=search,
+        offset=offset,
+    )
+
     return AdminResponse(
         success=True,
         data={
-            "logs": [],
-            "total_count": 0,
-            "has_more": False,
+            "logs": [
+                {
+                    "timestamp": (
+                        entry.timestamp.isoformat() if entry.timestamp else None
+                    ),
+                    "level": entry.level,
+                    "source": entry.source,
+                    "message": entry.message,
+                }
+                for entry in result.entries
+            ],
+            "total_count": result.total_count,
+            "has_more": result.has_more,
+            "source": result.source,
+            "level_filter": result.level_filter,
+        },
+    )
+
+
+@router.get("/logs/sources", response_model=AdminResponse)
+async def get_log_sources(
+    admin: dict = Depends(get_admin_user),
+):
+    """Get available log sources."""
+    sources = [
+        {
+            "id": LogSource.APP.value,
+            "name": "Application",
+            "description": "Main application logs",
+        },
+        {
+            "id": LogSource.PRINT.value,
+            "name": "Print Service",
+            "description": "Print-related logs",
+        },
+        {
+            "id": LogSource.CUPS.value,
+            "name": "CUPS",
+            "description": "CUPS printer daemon logs",
+        },
+        {
+            "id": LogSource.SYSTEM.value,
+            "name": "System",
+            "description": "System service logs",
+        },
+    ]
+
+    levels = [
+        {"id": LogLevel.ALL.value, "name": "All"},
+        {"id": LogLevel.DEBUG.value, "name": "Debug"},
+        {"id": LogLevel.INFO.value, "name": "Info"},
+        {"id": LogLevel.WARNING.value, "name": "Warning"},
+        {"id": LogLevel.ERROR.value, "name": "Error"},
+        {"id": LogLevel.CRITICAL.value, "name": "Critical"},
+    ]
+
+    return AdminResponse(
+        success=True,
+        data={
+            "sources": sources,
+            "levels": levels,
+        },
+    )
+
+
+@router.get("/logs/download")
+async def download_logs(
+    source: str = "app",
+    hours: int = 24,
+    admin: dict = Depends(get_admin_user),
+):
+    """Download logs as a file.
+
+    Args:
+        source: Log source (app, print, cups, system)
+        hours: Number of hours of logs to include
+    """
+    from fastapi.responses import Response
+
+    log_viewer = LogViewerService()
+
+    # Validate source
+    try:
+        log_source = LogSource(source)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid log source. Must be one of: {[s.value for s in LogSource]}",
+        )
+
+    content = log_viewer.download_logs(source=log_source, hours=hours)
+    filename = (
+        f"photobooth_{source}_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    )
+
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
 
 
 @router.post("/system/reboot", response_model=AdminResponse)
 async def reboot_system(
+    delay: int = 10,
+    force: bool = False,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Schedule system reboot.
+
+    Args:
+        delay: Seconds before reboot (default 10)
+        force: Force reboot even with active jobs
+    """
+    system_service = SystemService()
+
+    # Check for active print jobs unless force is specified
+    if not force:
+        result = await db.execute(
+            select(func.count(PrintJobModel.id)).where(
+                PrintJobModel.status.in_(["pending", "processing", "printing"])
+            )
+        )
+        active_jobs = result.scalar() or 0
+
+        if active_jobs > 0:
+            return AdminResponse(
+                success=False,
+                data={
+                    "error": "ACTIVE_JOBS",
+                    "message": f"Cannot reboot with {active_jobs} active print job(s). Use force=true to override.",
+                    "active_jobs": active_jobs,
+                },
+            )
+
+    logger.warning(f"System reboot requested with delay={delay}s, force={force}")
+
+    result = await system_service.schedule_reboot(delay_seconds=delay, force=force)
+
+    return AdminResponse(
+        success=result["success"],
+        data=result,
+    )
+
+
+@router.post("/system/reboot/cancel", response_model=AdminResponse)
+async def cancel_reboot(
     admin: dict = Depends(get_admin_user),
 ):
-    """Schedule system reboot."""
-    logger.warning("System reboot requested")
+    """Cancel a scheduled reboot."""
+    system_service = SystemService()
 
-    # In production, would schedule actual reboot
-    # os.system("sudo reboot")
+    result = await system_service.cancel_reboot()
+
+    return AdminResponse(
+        success=result["success"],
+        data=result,
+    )
+
+
+@router.get("/system/reboot/status", response_model=AdminResponse)
+async def get_reboot_status(
+    admin: dict = Depends(get_admin_user),
+):
+    """Get current reboot status."""
+    system_service = SystemService()
+
+    status = system_service.get_reboot_status()
 
     return AdminResponse(
         success=True,
         data={
-            "message": "Reboot scheduled in 10 seconds",
-            "scheduled_at": datetime.now().isoformat(),
-            "delay_seconds": 10,
+            "scheduled": status.scheduled,
+            "scheduled_at": (
+                status.scheduled_at.isoformat() if status.scheduled_at else None
+            ),
+            "delay_seconds": status.delay_seconds,
+            "can_cancel": status.can_cancel,
         },
+    )
+
+
+@router.post("/system/shutdown", response_model=AdminResponse)
+async def shutdown_system(
+    delay: int = 10,
+    admin: dict = Depends(get_admin_user),
+):
+    """Schedule system shutdown.
+
+    Args:
+        delay: Seconds before shutdown (default 10)
+    """
+    system_service = SystemService()
+
+    logger.warning(f"System shutdown requested with delay={delay}s")
+
+    result = await system_service.shutdown_system(delay_seconds=delay)
+
+    return AdminResponse(
+        success=result["success"],
+        data=result,
+    )
+
+
+# Service management endpoints
+@router.get("/services", response_model=AdminResponse)
+async def get_services(
+    admin: dict = Depends(get_admin_user),
+):
+    """Get list of manageable system services."""
+    system_service = SystemService()
+
+    services = system_service.get_services()
+
+    return AdminResponse(
+        success=True,
+        data={
+            "services": [
+                {
+                    "name": s.name,
+                    "display_name": s.display_name,
+                    "status": s.status.value,
+                    "description": s.description,
+                    "can_restart": s.can_restart,
+                    "warning_level": s.warning_level,
+                }
+                for s in services
+            ]
+        },
+    )
+
+
+@router.post("/service/{name}/restart", response_model=AdminResponse)
+async def restart_service(
+    name: str,
+    admin: dict = Depends(get_admin_user),
+):
+    """Restart a system service.
+
+    Args:
+        name: Service name (cups, photobooth-backend, hostapd, dnsmasq)
+    """
+    # Validate service name
+    valid_services = [s.value for s in ServiceName]
+    if name not in valid_services:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid service name. Must be one of: {valid_services}",
+        )
+
+    system_service = SystemService()
+
+    logger.warning(f"Service restart requested: {name}")
+
+    result = await system_service.restart_service(name)
+
+    if not result["success"]:
+        raise HTTPException(
+            status_code=500, detail=result.get("error", "Restart failed")
+        )
+
+    return AdminResponse(
+        success=result["success"],
+        data=result,
+    )
+
+
+# Cleanup endpoints
+@router.get("/cleanup/preview", response_model=AdminResponse)
+async def preview_cleanup(
+    days: int = 30,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview cleanup without deleting.
+
+    Shows how many sessions and files would be cleaned.
+    """
+    cleanup_service = CleanupService()
+
+    try:
+        preview = await cleanup_service.preview_cleanup(db, retention_days=days)
+
+        return AdminResponse(
+            success=True,
+            data={
+                "sessions_count": preview.sessions_count,
+                "files_count": preview.files_count,
+                "total_size_bytes": preview.total_size_bytes,
+                "total_size_mb": round(preview.total_size_bytes / (1024 * 1024), 2),
+                "estimated_new_usage_percent": preview.estimated_new_usage_percent,
+                "retention_days": days,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Cleanup preview failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Preview failed: {str(e)}")
+
+
+@router.post("/cleanup", response_model=AdminResponse)
+async def execute_cleanup(
+    days: int = 30,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Execute storage cleanup.
+
+    Deletes files for sessions older than retention period.
+    Session metadata is preserved for statistics.
+    """
+    cleanup_service = CleanupService()
+
+    logger.info(f"Cleanup requested by admin with {days} days retention")
+
+    try:
+        result = await cleanup_service.execute_cleanup(db, retention_days=days)
+
+        return AdminResponse(
+            success=result.success,
+            data={
+                "sessions_cleaned": result.sessions_cleaned,
+                "files_deleted": result.files_deleted,
+                "bytes_freed": result.bytes_freed,
+                "mb_freed": round(result.bytes_freed / (1024 * 1024), 2),
+                "duration_seconds": result.duration_seconds,
+                "errors": result.errors,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Cleanup execution failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+
+# Photo export endpoints
+@router.get("/photos", response_model=AdminResponse)
+async def list_exportable_sessions(
+    page: int = 1,
+    limit: int = 20,
+    status: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List sessions with photos available for export.
+
+    Args:
+        page: Page number
+        limit: Items per page
+        status: Optional status filter (all, active, complete, printed, abandoned)
+    """
+    export_service = PhotoExportService()
+
+    result = await export_service.list_exportable_sessions(
+        db, page=page, limit=min(limit, 100), status_filter=status
+    )
+
+    return AdminResponse(
+        success=True,
+        data=result,
+    )
+
+
+@router.get("/photos/{session_id}", response_model=AdminResponse)
+async def get_session_photos(
+    session_id: str,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get photos info for a specific session.
+
+    Args:
+        session_id: Session ID
+    """
+    export_service = PhotoExportService()
+
+    result = await export_service.get_session_photos(db, session_id)
+
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return AdminResponse(
+        success=True,
+        data=result,
+    )
+
+
+@router.get("/photos/{session_id}/download")
+async def download_session_photos(
+    session_id: str,
+    export_type: str = "all",
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download photos from a specific session.
+
+    Args:
+        session_id: Session ID
+        export_type: Export type (all, photos, composite)
+    """
+    from fastapi.responses import FileResponse
+
+    export_service = PhotoExportService()
+
+    # Validate export type
+    try:
+        exp_type = ExportType(export_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid export type. Must be one of: {[e.value for e in ExportType]}",
+        )
+
+    zip_path = await export_service.export_session(db, session_id, exp_type)
+
+    if not zip_path:
+        raise HTTPException(
+            status_code=404, detail="Session not found or no files available"
+        )
+
+    return FileResponse(
+        zip_path,
+        media_type="application/zip",
+        filename=os.path.basename(zip_path),
+    )
+
+
+@router.post("/export", response_model=AdminResponse)
+async def create_bulk_export(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a bulk export job.
+
+    Args:
+        start_date: Start date (ISO format)
+        end_date: End date (ISO format)
+        status: Session status filter
+    """
+    export_service = PhotoExportService()
+
+    # Parse dates
+    parsed_start = None
+    parsed_end = None
+
+    if start_date:
+        try:
+            parsed_start = datetime.fromisoformat(start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format")
+
+    if end_date:
+        try:
+            parsed_end = datetime.fromisoformat(end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format")
+
+    job_id = await export_service.create_bulk_export(
+        db,
+        start_date=parsed_start,
+        end_date=parsed_end,
+        status_filter=status,
+    )
+
+    return AdminResponse(
+        success=True,
+        data={
+            "job_id": job_id,
+            "message": "Export job created",
+        },
+    )
+
+
+@router.get("/export/{job_id}/status", response_model=AdminResponse)
+async def get_export_status(
+    job_id: str,
+    admin: dict = Depends(get_admin_user),
+):
+    """Get status of an export job.
+
+    Args:
+        job_id: Export job ID
+    """
+    export_service = PhotoExportService()
+
+    job = export_service.get_export_status(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Export job not found")
+
+    return AdminResponse(
+        success=True,
+        data={
+            "id": job.id,
+            "status": job.status.value,
+            "sessions_count": job.sessions_count,
+            "files_count": job.files_count,
+            "total_size": job.total_size,
+            "total_size_mb": (
+                round(job.total_size / (1024 * 1024), 2) if job.total_size else 0
+            ),
+            "progress": job.progress,
+            "created_at": job.created_at.isoformat(),
+            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+            "error": job.error,
+        },
+    )
+
+
+@router.get("/export/{job_id}/download")
+async def download_export(
+    job_id: str,
+    admin: dict = Depends(get_admin_user),
+):
+    """Download completed export.
+
+    Args:
+        job_id: Export job ID
+    """
+    from fastapi.responses import FileResponse
+
+    export_service = PhotoExportService()
+
+    job = export_service.get_export_status(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Export job not found")
+
+    if job.status.value != "completed":
+        raise HTTPException(
+            status_code=400, detail=f"Export not ready. Status: {job.status.value}"
+        )
+
+    if not job.download_path or not os.path.exists(job.download_path):
+        raise HTTPException(status_code=404, detail="Export file not found")
+
+    return FileResponse(
+        job.download_path,
+        media_type="application/zip",
+        filename=os.path.basename(job.download_path),
     )

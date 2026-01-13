@@ -10,12 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...domain import ErrorCode, PrintStatus, SessionId
 from ...domain.entities import PrintJob
-from ...infrastructure.database import (
-    JobEventModel,
-    PrintJobModel,
-    SessionModel,
-    get_db,
-)
+from ...infrastructure.database import (JobEventModel, PrintJobModel,
+                                        SessionModel, get_db)
 from ...infrastructure.services import PrinterService
 
 router = APIRouter()

@@ -1,0 +1,19 @@
+# Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Include base requirements
+-r requirements.txt
+
+# Testing
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+factory-boy==3.3.0
+
+# Code quality
+black==24.1.0
+isort==5.13.0
+ruff==0.1.11
+mypy==1.8.0
+
+# Type stubs
+types-python-dateutil==2.8.19

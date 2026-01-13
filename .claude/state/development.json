@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-01-13T00:00:00Z",
+  "lastUpdated": "2026-01-13T22:00:00Z",
   "currentFocus": {
-    "useCase": "UC-105",
-    "component": "infrastructure",
-    "description": "Phase 6: Pi deployment scripts pending"
+    "useCase": null,
+    "component": "testing",
+    "description": "All use cases implemented. Testing and deployment remaining."
   },
   "useCases": {
     "UC-001": {
@@ -117,29 +117,44 @@
       "notes": "Manage Print Queue. Queue management endpoints."
     },
     "UC-105": {
-      "status": "not_started",
-      "files": [],
-      "notes": "Restart Service - Not implemented yet."
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "backend/app/infrastructure/services/system_service.py"
+      ],
+      "notes": "Restart Service. SystemService with service restart endpoints."
     },
     "UC-106": {
-      "status": "not_started",
-      "files": [],
-      "notes": "Test Print - Not implemented yet."
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "backend/app/infrastructure/services/test_pattern.py"
+      ],
+      "notes": "Test Print. TestPatternGenerator with 4 pattern types (color bars, alignment, gradient, full)."
     },
     "UC-107": {
-      "status": "not_started",
-      "files": [],
-      "notes": "View Logs - Not implemented yet."
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "backend/app/infrastructure/services/log_viewer.py"
+      ],
+      "notes": "View Logs. LogViewerService with multiple sources (app, print, cups, system) and filtering."
     },
     "UC-108": {
-      "status": "not_started",
-      "files": [],
-      "notes": "Download Photos - Not implemented yet."
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "backend/app/infrastructure/services/photo_export.py"
+      ],
+      "notes": "Download Photos. PhotoExportService with single session and bulk export support."
     },
     "UC-109": {
-      "status": "not_started",
-      "files": [],
-      "notes": "Reboot System - Not implemented yet."
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "backend/app/infrastructure/services/system_service.py"
+      ],
+      "notes": "Reboot System. SystemService with scheduled reboot, cancel, and active jobs check."
     },
     "UC-201": {
       "status": "implemented",
@@ -163,9 +178,13 @@
       "notes": "Session Timeout. Inactivity detection in camera page."
     },
     "UC-204": {
-      "status": "not_started",
-      "files": [],
-      "notes": "Scheduled Cleanup - Background task not implemented."
+      "status": "implemented",
+      "files": [
+        "backend/app/infrastructure/services/cleanup_service.py",
+        "backend/app/infrastructure/scheduler.py",
+        "backend/app/adapters/api/admin.py"
+      ],
+      "notes": "Scheduled Cleanup. APScheduler-based daily cleanup at 2 AM, storage monitor every 30 min."
     },
     "UC-205": {
       "status": "implemented",
@@ -177,8 +196,8 @@
   },
   "components": {
     "backend": {
-      "progress": 85,
-      "lastTouched": "2026-01-13T00:00:00Z",
+      "progress": 100,
+      "lastTouched": "2026-01-13T22:00:00Z",
       "modules": {
         "domain": {
           "progress": 100,
@@ -191,7 +210,7 @@
           ]
         },
         "application": {
-          "progress": 80,
+          "progress": 100,
           "files": [
             "backend/app/application/use_cases/session_use_cases.py",
             "backend/app/application/use_cases/print_use_cases.py",
@@ -200,7 +219,7 @@
           ]
         },
         "adapters": {
-          "progress": 90,
+          "progress": 100,
           "files": [
             "backend/app/adapters/api/health.py",
             "backend/app/adapters/api/session.py",
@@ -209,19 +228,25 @@
           ]
         },
         "infrastructure": {
-          "progress": 85,
+          "progress": 100,
           "files": [
             "backend/app/infrastructure/database.py",
+            "backend/app/infrastructure/scheduler.py",
             "backend/app/infrastructure/services/storage_service.py",
             "backend/app/infrastructure/services/image_processor.py",
-            "backend/app/infrastructure/services/printer_service.py"
+            "backend/app/infrastructure/services/printer_service.py",
+            "backend/app/infrastructure/services/cleanup_service.py",
+            "backend/app/infrastructure/services/test_pattern.py",
+            "backend/app/infrastructure/services/system_service.py",
+            "backend/app/infrastructure/services/log_viewer.py",
+            "backend/app/infrastructure/services/photo_export.py"
           ]
         }
       }
     },
     "frontend": {
       "progress": 90,
-      "lastTouched": "2026-01-13T00:00:00Z",
+      "lastTouched": "2026-01-13T22:00:00Z",
       "modules": {
         "components": {
           "progress": 85,
@@ -261,7 +286,7 @@
     },
     "infrastructure": {
       "progress": 60,
-      "lastTouched": "2026-01-13T00:00:00Z",
+      "lastTouched": "2026-01-13T22:00:00Z",
       "modules": {
         "docker": {
           "progress": 100,
@@ -292,14 +317,14 @@
       "severity": "medium",
       "description": "Admin use cases UC-105 to UC-109 not implemented",
       "createdAt": "2026-01-13T00:00:00Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-01-13T22:00:00Z"
     },
     {
       "id": "TD-002",
       "severity": "low",
       "description": "Scheduled cleanup task (UC-204) not implemented",
       "createdAt": "2026-01-13T00:00:00Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-01-13T22:00:00Z"
     },
     {
       "id": "TD-003",
@@ -313,12 +338,12 @@
       "severity": "high",
       "description": "No unit or integration tests written yet",
       "createdAt": "2026-01-13T00:00:00Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-01-13T22:00:00Z"
     }
   ],
   "blockers": [],
   "testCoverage": {
-    "backend": { "unit": 0, "integration": 0 },
-    "frontend": { "unit": 0, "e2e": 0 }
+    "backend": { "unit": 75, "integration": 24 },
+    "frontend": { "unit": 10, "e2e": 0 }
   }
 }

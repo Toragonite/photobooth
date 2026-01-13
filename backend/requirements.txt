@@ -25,6 +25,9 @@ pycups==2.0.1;sys_platform=='linux'
 python-dateutil==2.8.2
 aiofiles==23.2.1
 
+# Scheduler
+APScheduler==3.10.4
+
 # Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3
