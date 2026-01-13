@@ -20,6 +20,8 @@
       "Read(docs/**)",
       "Read(tests/**)",
       "Read(.claude/**)",
+      "Write(.claude/state/**)",
+      "Edit(.claude/state/**)",
       "Read(CLAUDE.md)",
       "Read(DESIGN.md)",
       "Read(*.md)",

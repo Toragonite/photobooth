@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-13T00:00:00Z",
+  "currentFocus": {
+    "useCase": null,
+    "component": null,
+    "description": "Initial setup - no active development"
+  },
+  "useCases": {
+    "UC-001": { "status": "not_started", "files": [], "notes": "Start Session - Entry point" },
+    "UC-002": { "status": "not_started", "files": [], "notes": "Capture Photo" },
+    "UC-003": { "status": "not_started", "files": [], "notes": "Generate Composite" },
+    "UC-004": { "status": "not_started", "files": [], "notes": "Preview Composite" },
+    "UC-005": { "status": "not_started", "files": [], "notes": "Confirm Print" },
+    "UC-006": { "status": "not_started", "files": [], "notes": "Print Photo" },
+    "UC-007": { "status": "not_started", "files": [], "notes": "Retry Failed Print" },
+    "UC-008": { "status": "not_started", "files": [], "notes": "Abort Print Job" },
+    "UC-009": { "status": "not_started", "files": [], "notes": "View Session Photos" },
+    "UC-010": { "status": "not_started", "files": [], "notes": "End Session" },
+    "UC-101": { "status": "not_started", "files": [], "notes": "Admin Login" },
+    "UC-102": { "status": "not_started", "files": [], "notes": "View System Status" },
+    "UC-103": { "status": "not_started", "files": [], "notes": "View Print History" },
+    "UC-104": { "status": "not_started", "files": [], "notes": "Manage Print Queue" },
+    "UC-105": { "status": "not_started", "files": [], "notes": "Update Settings" },
+    "UC-106": { "status": "not_started", "files": [], "notes": "View Storage Status" },
+    "UC-107": { "status": "not_started", "files": [], "notes": "Clear Old Sessions" },
+    "UC-108": { "status": "not_started", "files": [], "notes": "Export Statistics" },
+    "UC-109": { "status": "not_started", "files": [], "notes": "Reboot System" },
+    "UC-201": { "status": "not_started", "files": [], "notes": "Auto Retry Print" },
+    "UC-202": { "status": "not_started", "files": [], "notes": "Storage Cleanup" },
+    "UC-203": { "status": "not_started", "files": [], "notes": "Session Timeout" },
+    "UC-204": { "status": "not_started", "files": [], "notes": "Printer Recovery" },
+    "UC-205": { "status": "not_started", "files": [], "notes": "Health Check" }
+  },
+  "components": {
+    "backend": {
+      "progress": 0,
+      "lastTouched": null,
+      "modules": {
+        "domain": { "progress": 0, "files": [] },
+        "application": { "progress": 0, "files": [] },
+        "adapters": { "progress": 0, "files": [] },
+        "infrastructure": { "progress": 0, "files": [] }
+      }
+    },
+    "frontend": {
+      "progress": 0,
+      "lastTouched": null,
+      "modules": {
+        "components": { "progress": 0, "files": [] },
+        "pages": { "progress": 0, "files": [] },
+        "hooks": { "progress": 0, "files": [] },
+        "services": { "progress": 0, "files": [] }
+      }
+    },
+    "infrastructure": {
+      "progress": 0,
+      "lastTouched": null,
+      "modules": {
+        "docker": { "progress": 0, "files": [] },
+        "systemd": { "progress": 0, "files": [] },
+        "networking": { "progress": 0, "files": [] }
+      }
+    }
+  },
+  "technicalDebt": [],
+  "blockers": [],
+  "testCoverage": {
+    "backend": { "unit": 0, "integration": 0 },
+    "frontend": { "unit": 0, "e2e": 0 }
+  }
+}
