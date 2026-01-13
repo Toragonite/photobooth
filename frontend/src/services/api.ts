@@ -13,6 +13,12 @@ interface ApiResponse<T = unknown> {
   };
 }
 
+interface ErrorInterceptor {
+  onError?: (error: Error, response?: Response) => void;
+  onAuthError?: () => void;
+  onServerError?: () => void;
+}
+
 interface Session {
   session_id: string;
   language: string;
@@ -70,6 +76,16 @@ interface CompositeResult {
 }
 
 class ApiClient {
+  private interceptor: ErrorInterceptor | null = null;
+
+  setInterceptor(interceptor: ErrorInterceptor): void {
+    this.interceptor = interceptor;
+  }
+
+  clearInterceptor(): void {
+    this.interceptor = null;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -87,7 +103,17 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error?.message || `HTTP ${response.status}`);
+      const error = new Error(data.error?.message || `HTTP ${response.status}`);
+
+      // Intercept specific errors
+      if (response.status === 401) {
+        this.interceptor?.onAuthError?.();
+      } else if (response.status >= 500) {
+        this.interceptor?.onServerError?.();
+      }
+
+      this.interceptor?.onError?.(error, response);
+      throw error;
     }
 
     return data;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
+import { adminApi } from "../services/adminApi";
 
 export function AdminLogin() {
   const navigate = useNavigate();
@@ -21,17 +22,9 @@ export function AdminLogin() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
-      });
+      const response = await adminApi.login(pin);
 
-      const data = await response.json();
-
-      if (data.success && data.data?.token) {
-        localStorage.setItem("adminToken", data.data.token);
-        localStorage.setItem("adminTokenExpires", data.data.expires_at);
+      if (response.success && response.data?.token) {
         navigate("/admin/dashboard");
       } else {
         setError(t("admin.login.invalidPin"));

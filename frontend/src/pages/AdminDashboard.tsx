@@ -1,25 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { LoadingSpinner } from "../components/common";
-
-interface SystemStatus {
-  overall_health: string;
-  printer: {
-    name: string;
-    status: string;
-    mock_mode: boolean;
-  };
-  storage: {
-    percent_used: number;
-    free_bytes: number;
-  };
-  activity: {
-    prints_total: number;
-    prints_completed: number;
-    prints_failed: number;
-  };
-}
+import { adminApi, SystemStatus } from "../services/adminApi";
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -29,21 +12,14 @@ export function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const token = localStorage.getItem("adminToken");
-
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/admin/status", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setError(null);
+      const response = await adminApi.getStatus();
 
-      const data = await response.json();
-
-      if (data.success) {
-        setStatus(data.data);
+      if (response.success && response.data) {
+        setStatus(response.data);
       } else {
         setError("Failed to load status");
       }
@@ -53,43 +29,39 @@ export function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Check auth
-    if (!token) {
-      navigate("/admin");
-      return;
-    }
-
-    // Check expiry
-    const expires = localStorage.getItem("adminTokenExpires");
-    if (expires && new Date(expires) < new Date()) {
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminTokenExpires");
+    // Check auth using adminApi helper
+    if (!adminApi.isAuthenticated()) {
       navigate("/admin");
       return;
     }
 
     fetchStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, navigate]);
+  }, [navigate, fetchStatus]);
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/admin/logout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await adminApi.logout();
     } catch (err) {
       console.error("Logout failed:", err);
     }
-
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminTokenExpires");
     navigate("/admin");
+  };
+
+  const handleTestPrint = async () => {
+    try {
+      const response = await adminApi.sendTestPrint("color_bars");
+      if (response.success) {
+        alert("Test print sent successfully!");
+      } else {
+        alert("Failed to send test print");
+      }
+    } catch (err) {
+      console.error("Test print failed:", err);
+      alert("Failed to send test print");
+    }
   };
 
   if (isLoading) {
@@ -234,7 +206,7 @@ export function AdminDashboard() {
                 Refresh Status
               </button>
               <button
-                onClick={() => alert("Test print would be sent")}
+                onClick={handleTestPrint}
                 className="btn-outline py-2 px-4 min-h-0"
               >
                 Test Print

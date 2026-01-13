@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { api } from "../services/api";
-import { LoadingSpinner } from "../components/common";
+import { LoadingSpinner, CopySelector } from "../components/common";
 
 export function PreviewPage() {
   const navigate = useNavigate();
@@ -112,25 +112,12 @@ export function PreviewPage() {
         <div className="space-y-4 mb-6">
           {/* Copy selector */}
           <div className="flex items-center justify-center gap-4">
-            <span className="text-text-muted">{t("preview.copies")}:</span>
-            <div className="flex gap-2">
-              {[1, 2, 3]
-                .filter((n) => n <= settings.maxCopies)
-                .map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setCopies(n)}
-                    className={`w-12 h-12 rounded-full font-bold transition-colors
-                             ${
-                               copies === n
-                                 ? "bg-primary text-white"
-                                 : "bg-gray-100 text-text-muted hover:bg-gray-200"
-                             }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-            </div>
+            <CopySelector
+              value={copies}
+              onChange={setCopies}
+              max={settings.maxCopies}
+              label={t("preview.copies")}
+            />
           </div>
 
           {/* Toggles */}
