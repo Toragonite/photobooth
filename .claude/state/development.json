@@ -1,69 +1,321 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-01-13T00:00:00Z",
+  "lastUpdated": "2026-01-13T00:00:00Z",
   "currentFocus": {
-    "useCase": null,
-    "component": null,
-    "description": "Initial setup - no active development"
+    "useCase": "UC-105",
+    "component": "infrastructure",
+    "description": "Phase 6: Pi deployment scripts pending"
   },
   "useCases": {
-    "UC-001": { "status": "not_started", "files": [], "notes": "Start Session - Entry point" },
-    "UC-002": { "status": "not_started", "files": [], "notes": "Capture Photo" },
-    "UC-003": { "status": "not_started", "files": [], "notes": "Generate Composite" },
-    "UC-004": { "status": "not_started", "files": [], "notes": "Preview Composite" },
-    "UC-005": { "status": "not_started", "files": [], "notes": "Confirm Print" },
-    "UC-006": { "status": "not_started", "files": [], "notes": "Print Photo" },
-    "UC-007": { "status": "not_started", "files": [], "notes": "Retry Failed Print" },
-    "UC-008": { "status": "not_started", "files": [], "notes": "Abort Print Job" },
-    "UC-009": { "status": "not_started", "files": [], "notes": "View Session Photos" },
-    "UC-010": { "status": "not_started", "files": [], "notes": "End Session" },
-    "UC-101": { "status": "not_started", "files": [], "notes": "Admin Login" },
-    "UC-102": { "status": "not_started", "files": [], "notes": "View System Status" },
-    "UC-103": { "status": "not_started", "files": [], "notes": "View Print History" },
-    "UC-104": { "status": "not_started", "files": [], "notes": "Manage Print Queue" },
-    "UC-105": { "status": "not_started", "files": [], "notes": "Update Settings" },
-    "UC-106": { "status": "not_started", "files": [], "notes": "View Storage Status" },
-    "UC-107": { "status": "not_started", "files": [], "notes": "Clear Old Sessions" },
-    "UC-108": { "status": "not_started", "files": [], "notes": "Export Statistics" },
-    "UC-109": { "status": "not_started", "files": [], "notes": "Reboot System" },
-    "UC-201": { "status": "not_started", "files": [], "notes": "Auto Retry Print" },
-    "UC-202": { "status": "not_started", "files": [], "notes": "Storage Cleanup" },
-    "UC-203": { "status": "not_started", "files": [], "notes": "Session Timeout" },
-    "UC-204": { "status": "not_started", "files": [], "notes": "Printer Recovery" },
-    "UC-205": { "status": "not_started", "files": [], "notes": "Health Check" }
+    "UC-001": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/session.py",
+        "frontend/src/pages/HomePage.tsx"
+      ],
+      "notes": "Start Session - Entry point. Session creation API and home page implemented."
+    },
+    "UC-002": {
+      "status": "implemented",
+      "files": [
+        "frontend/src/pages/CameraPage.tsx",
+        "frontend/src/hooks/useCamera.ts",
+        "backend/app/adapters/api/session.py"
+      ],
+      "notes": "Capture Photo. Camera hook with MediaDevices API, photo upload endpoint."
+    },
+    "UC-003": {
+      "status": "implemented",
+      "files": [
+        "backend/app/infrastructure/services/image_processor.py",
+        "backend/app/adapters/api/session.py"
+      ],
+      "notes": "Generate Composite. 4-cut image composition with Pillow."
+    },
+    "UC-004": {
+      "status": "implemented",
+      "files": [
+        "frontend/src/pages/PreviewPage.tsx"
+      ],
+      "notes": "Preview Composite. Shows 4-cut preview with copy selection."
+    },
+    "UC-005": {
+      "status": "implemented",
+      "files": [
+        "frontend/src/pages/PreviewPage.tsx",
+        "backend/app/adapters/api/print_jobs.py"
+      ],
+      "notes": "Confirm Print. Copy selector and print submission."
+    },
+    "UC-006": {
+      "status": "implemented",
+      "files": [
+        "backend/app/infrastructure/services/printer_service.py",
+        "frontend/src/pages/PrintingPage.tsx"
+      ],
+      "notes": "Print Photo. CUPS integration with mock mode, progress display."
+    },
+    "UC-007": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/print_jobs.py",
+        "frontend/src/pages/ErrorPage.tsx"
+      ],
+      "notes": "Retry Failed Print. Retry endpoint and error page with retry button."
+    },
+    "UC-008": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/print_jobs.py",
+        "frontend/src/pages/PrintingPage.tsx"
+      ],
+      "notes": "Abort Print Job. Cancel endpoint implemented."
+    },
+    "UC-009": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/session.py"
+      ],
+      "notes": "View Session Photos. Session detail endpoint returns all photos."
+    },
+    "UC-010": {
+      "status": "implemented",
+      "files": [
+        "frontend/src/pages/CompletePage.tsx"
+      ],
+      "notes": "End Session. Complete page with auto-redirect to home."
+    },
+    "UC-101": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "frontend/src/pages/AdminLogin.tsx"
+      ],
+      "notes": "Admin Login. PIN authentication with JWT token."
+    },
+    "UC-102": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "frontend/src/pages/AdminDashboard.tsx"
+      ],
+      "notes": "View System Status. Health endpoint with disk/memory stats."
+    },
+    "UC-103": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py",
+        "frontend/src/pages/AdminDashboard.tsx"
+      ],
+      "notes": "View Print History. Print history endpoint with pagination."
+    },
+    "UC-104": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/admin.py"
+      ],
+      "notes": "Manage Print Queue. Queue management endpoints."
+    },
+    "UC-105": {
+      "status": "not_started",
+      "files": [],
+      "notes": "Restart Service - Not implemented yet."
+    },
+    "UC-106": {
+      "status": "not_started",
+      "files": [],
+      "notes": "Test Print - Not implemented yet."
+    },
+    "UC-107": {
+      "status": "not_started",
+      "files": [],
+      "notes": "View Logs - Not implemented yet."
+    },
+    "UC-108": {
+      "status": "not_started",
+      "files": [],
+      "notes": "Download Photos - Not implemented yet."
+    },
+    "UC-109": {
+      "status": "not_started",
+      "files": [],
+      "notes": "Reboot System - Not implemented yet."
+    },
+    "UC-201": {
+      "status": "implemented",
+      "files": [
+        "backend/app/infrastructure/services/printer_service.py"
+      ],
+      "notes": "Auto Retry Print. Retry logic in printer service."
+    },
+    "UC-202": {
+      "status": "implemented",
+      "files": [
+        "backend/app/infrastructure/services/storage_service.py"
+      ],
+      "notes": "Storage Cleanup. Cleanup method in storage service."
+    },
+    "UC-203": {
+      "status": "implemented",
+      "files": [
+        "frontend/src/pages/CameraPage.tsx"
+      ],
+      "notes": "Session Timeout. Inactivity detection in camera page."
+    },
+    "UC-204": {
+      "status": "not_started",
+      "files": [],
+      "notes": "Scheduled Cleanup - Background task not implemented."
+    },
+    "UC-205": {
+      "status": "implemented",
+      "files": [
+        "backend/app/adapters/api/health.py"
+      ],
+      "notes": "Health Check. Comprehensive health endpoint."
+    }
   },
   "components": {
     "backend": {
-      "progress": 0,
-      "lastTouched": null,
+      "progress": 85,
+      "lastTouched": "2026-01-13T00:00:00Z",
       "modules": {
-        "domain": { "progress": 0, "files": [] },
-        "application": { "progress": 0, "files": [] },
-        "adapters": { "progress": 0, "files": [] },
-        "infrastructure": { "progress": 0, "files": [] }
+        "domain": {
+          "progress": 100,
+          "files": [
+            "backend/app/domain/entities/photo.py",
+            "backend/app/domain/entities/photo_session.py",
+            "backend/app/domain/entities/print_job.py",
+            "backend/app/domain/value_objects/ids.py",
+            "backend/app/domain/value_objects/enums.py"
+          ]
+        },
+        "application": {
+          "progress": 80,
+          "files": [
+            "backend/app/application/use_cases/session_use_cases.py",
+            "backend/app/application/use_cases/print_use_cases.py",
+            "backend/app/application/ports/printer_port.py",
+            "backend/app/application/ports/storage_port.py"
+          ]
+        },
+        "adapters": {
+          "progress": 90,
+          "files": [
+            "backend/app/adapters/api/health.py",
+            "backend/app/adapters/api/session.py",
+            "backend/app/adapters/api/print_jobs.py",
+            "backend/app/adapters/api/admin.py"
+          ]
+        },
+        "infrastructure": {
+          "progress": 85,
+          "files": [
+            "backend/app/infrastructure/database.py",
+            "backend/app/infrastructure/services/storage_service.py",
+            "backend/app/infrastructure/services/image_processor.py",
+            "backend/app/infrastructure/services/printer_service.py"
+          ]
+        }
       }
     },
     "frontend": {
-      "progress": 0,
-      "lastTouched": null,
+      "progress": 90,
+      "lastTouched": "2026-01-13T00:00:00Z",
       "modules": {
-        "components": { "progress": 0, "files": [] },
-        "pages": { "progress": 0, "files": [] },
-        "hooks": { "progress": 0, "files": [] },
-        "services": { "progress": 0, "files": [] }
+        "components": {
+          "progress": 85,
+          "files": [
+            "frontend/src/components/common/HomeButton.tsx",
+            "frontend/src/components/common/LanguageToggle.tsx",
+            "frontend/src/components/common/LoadingSpinner.tsx",
+            "frontend/src/components/common/ErrorDisplay.tsx"
+          ]
+        },
+        "pages": {
+          "progress": 100,
+          "files": [
+            "frontend/src/pages/HomePage.tsx",
+            "frontend/src/pages/CameraPage.tsx",
+            "frontend/src/pages/PreviewPage.tsx",
+            "frontend/src/pages/PrintingPage.tsx",
+            "frontend/src/pages/CompletePage.tsx",
+            "frontend/src/pages/ErrorPage.tsx",
+            "frontend/src/pages/AdminLogin.tsx",
+            "frontend/src/pages/AdminDashboard.tsx"
+          ]
+        },
+        "hooks": {
+          "progress": 80,
+          "files": [
+            "frontend/src/hooks/useCamera.ts"
+          ]
+        },
+        "services": {
+          "progress": 90,
+          "files": [
+            "frontend/src/services/api.ts"
+          ]
+        }
       }
     },
     "infrastructure": {
-      "progress": 0,
-      "lastTouched": null,
+      "progress": 60,
+      "lastTouched": "2026-01-13T00:00:00Z",
       "modules": {
-        "docker": { "progress": 0, "files": [] },
-        "systemd": { "progress": 0, "files": [] },
-        "networking": { "progress": 0, "files": [] }
+        "docker": {
+          "progress": 100,
+          "files": [
+            "docker-compose.yml",
+            "docker/nginx/nginx.conf",
+            "backend/Dockerfile",
+            "frontend/Dockerfile"
+          ]
+        },
+        "systemd": {
+          "progress": 0,
+          "files": []
+        },
+        "networking": {
+          "progress": 30,
+          "files": [
+            "scripts/generate-ssl.sh",
+            ".env.example"
+          ]
+        }
       }
     }
   },
-  "technicalDebt": [],
+  "technicalDebt": [
+    {
+      "id": "TD-001",
+      "severity": "medium",
+      "description": "Admin use cases UC-105 to UC-109 not implemented",
+      "createdAt": "2026-01-13T00:00:00Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "TD-002",
+      "severity": "low",
+      "description": "Scheduled cleanup task (UC-204) not implemented",
+      "createdAt": "2026-01-13T00:00:00Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "TD-003",
+      "severity": "medium",
+      "description": "Phase 6 deployment scripts not created",
+      "createdAt": "2026-01-13T00:00:00Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "TD-004",
+      "severity": "high",
+      "description": "No unit or integration tests written yet",
+      "createdAt": "2026-01-13T00:00:00Z",
+      "resolvedAt": null
+    }
+  ],
   "blockers": [],
   "testCoverage": {
     "backend": { "unit": 0, "integration": 0 },

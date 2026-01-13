@@ -1,1 +1,37 @@
+# Claude Code local settings
 .claude/settings.local.json
+# Optionally ignore session context (per-developer)
+# .claude/state/context.json
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+dist/
+build/
+
+# Docker
+*.log
+
+# Data (production)
+data/
+*.db
