@@ -1,0 +1,94 @@
+{
+  "app": {
+    "title": "포토부스",
+    "loading": "로딩 중..."
+  },
+  "home": {
+    "title": "인생네컷",
+    "subtitle": "4장의 사진으로 추억을 만들어보세요",
+    "startButton": "시작하기",
+    "languageToggle": "English"
+  },
+  "camera": {
+    "title": "사진 촬영",
+    "instruction": "카메라를 바라보세요",
+    "photoCount": "{{current}} / 4",
+    "countdown": {
+      "title": "카운트다운 설정",
+      "seconds": "초"
+    },
+    "capture": "촬영",
+    "retake": "다시 찍기",
+    "next": "다음",
+    "permissionDenied": "카메라 접근 권한이 필요합니다",
+    "permissionInstructions": "설정에서 카메라 접근을 허용해주세요",
+    "error": "카메라를 시작할 수 없습니다"
+  },
+  "preview": {
+    "title": "미리보기",
+    "instruction": "사진을 확인하세요",
+    "retakePhoto": "사진 다시 찍기",
+    "copies": "인쇄 매수",
+    "copiesCount": "{{count}}장",
+    "includeDate": "날짜 표시",
+    "includeLogo": "로고 표시",
+    "print": "인쇄하기",
+    "generating": "이미지 생성 중..."
+  },
+  "printing": {
+    "title": "인쇄 중",
+    "processing": "이미지 처리 중...",
+    "sending": "프린터로 전송 중...",
+    "printing": "인쇄 중...",
+    "pleaseWait": "잠시만 기다려주세요",
+    "doNotLeave": "이 화면을 벗어나지 마세요"
+  },
+  "complete": {
+    "title": "완료!",
+    "message": "사진이 인쇄되었습니다",
+    "thankYou": "이용해 주셔서 감사합니다",
+    "newSession": "새로운 사진 찍기",
+    "autoReturn": "{{seconds}}초 후 홈으로 돌아갑니다"
+  },
+  "error": {
+    "title": "오류 발생",
+    "retry": "다시 시도",
+    "abort": "취소",
+    "goHome": "홈으로",
+    "messages": {
+      "printer_offline": "프린터가 오프라인입니다. 연결을 확인하세요.",
+      "printer_busy": "프린터가 사용 중입니다. 잠시 기다려주세요.",
+      "paper_empty": "용지를 넣어주세요.",
+      "ink_empty": "잉크 카트리지를 교체해주세요.",
+      "processing_error": "이미지 처리에 실패했습니다.",
+      "unknown": "알 수 없는 오류가 발생했습니다."
+    }
+  },
+  "admin": {
+    "title": "관리자",
+    "login": {
+      "title": "관리자 로그인",
+      "pinPlaceholder": "PIN 입력",
+      "submit": "로그인",
+      "invalidPin": "잘못된 PIN입니다"
+    },
+    "dashboard": {
+      "title": "대시보드",
+      "status": "시스템 상태",
+      "printer": "프린터",
+      "storage": "저장 공간",
+      "activity": "오늘의 활동",
+      "settings": "설정",
+      "logout": "로그아웃"
+    }
+  },
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "cancel": "취소",
+    "confirm": "확인",
+    "back": "뒤로",
+    "home": "홈"
+  }
+}

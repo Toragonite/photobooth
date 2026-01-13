@@ -1,0 +1,94 @@
+{
+  "app": {
+    "title": "PhotoBooth",
+    "loading": "Loading..."
+  },
+  "home": {
+    "title": "4-Cut Photo",
+    "subtitle": "Create memories with 4 photos",
+    "startButton": "Start",
+    "languageToggle": "한국어"
+  },
+  "camera": {
+    "title": "Take Photos",
+    "instruction": "Look at the camera",
+    "photoCount": "{{current}} / 4",
+    "countdown": {
+      "title": "Countdown Setting",
+      "seconds": "sec"
+    },
+    "capture": "Capture",
+    "retake": "Retake",
+    "next": "Next",
+    "permissionDenied": "Camera permission required",
+    "permissionInstructions": "Please allow camera access in settings",
+    "error": "Failed to start camera"
+  },
+  "preview": {
+    "title": "Preview",
+    "instruction": "Review your photos",
+    "retakePhoto": "Retake Photo",
+    "copies": "Copies",
+    "copiesCount": "{{count}}",
+    "includeDate": "Show Date",
+    "includeLogo": "Show Logo",
+    "print": "Print",
+    "generating": "Generating image..."
+  },
+  "printing": {
+    "title": "Printing",
+    "processing": "Processing image...",
+    "sending": "Sending to printer...",
+    "printing": "Printing...",
+    "pleaseWait": "Please wait",
+    "doNotLeave": "Do not leave this screen"
+  },
+  "complete": {
+    "title": "Complete!",
+    "message": "Your photo has been printed",
+    "thankYou": "Thank you for using PhotoBooth",
+    "newSession": "Take New Photos",
+    "autoReturn": "Returning home in {{seconds}} seconds"
+  },
+  "error": {
+    "title": "Error",
+    "retry": "Retry",
+    "abort": "Abort",
+    "goHome": "Go Home",
+    "messages": {
+      "printer_offline": "Printer is offline. Please check the connection.",
+      "printer_busy": "Printer is busy. Please wait.",
+      "paper_empty": "Please add paper to the printer.",
+      "ink_empty": "Please replace the ink cartridge.",
+      "processing_error": "Failed to process images.",
+      "unknown": "An unknown error occurred."
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "login": {
+      "title": "Admin Login",
+      "pinPlaceholder": "Enter PIN",
+      "submit": "Login",
+      "invalidPin": "Invalid PIN"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "status": "System Status",
+      "printer": "Printer",
+      "storage": "Storage",
+      "activity": "Today's Activity",
+      "settings": "Settings",
+      "logout": "Logout"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "home": "Home"
+  }
+}
