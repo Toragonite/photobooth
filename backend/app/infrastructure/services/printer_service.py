@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
+from ...application.ports.services.printer_port import (
+    PrinterPort,
+    PrinterStatus as PortPrinterStatus,
+    PrintResult as PortPrintResult,
+)
 from ...config import get_settings
 from ...domain.value_objects import ErrorCode
 
@@ -45,8 +50,11 @@ class PrintResult:
     error_message: Optional[str] = None
 
 
-class PrinterService:
-    """Service for printer operations with CUPS or mock mode."""
+class PrinterService(PrinterPort):
+    """Service for printer operations with CUPS or mock mode.
+
+    Implements PrinterPort interface for Clean Architecture compatibility.
+    """
 
     def __init__(self):
         self.mock_mode = settings.printer_mock_mode
@@ -115,8 +123,8 @@ class PrinterService:
             logger.error(f"Failed to get printers: {e}")
             return []
 
-    def get_printer_status(self, name: Optional[str] = None) -> Optional[PrinterInfo]:
-        """Get status of a specific printer."""
+    def get_printer_info(self, name: Optional[str] = None) -> Optional[PrinterInfo]:
+        """Get info of a specific printer (internal)."""
         name = name or self.printer_name
         printers = self.get_printers()
 
@@ -133,7 +141,7 @@ class PrinterService:
 
         try:
             # Check printer is available
-            status = self.get_printer_status()
+            status = self.get_printer_info()
             if not status:
                 return PrintResult(
                     success=False,
@@ -173,8 +181,8 @@ class PrinterService:
                 error_message=str(e),
             )
 
-    async def get_job_status(self, job_id: int) -> Optional[dict]:
-        """Get status of a print job."""
+    async def _get_job_status_internal(self, job_id: int) -> Optional[dict]:
+        """Get status of a print job (internal)."""
         if self.mock_mode:
             return await self._mock_job_status(job_id)
 
@@ -267,3 +275,59 @@ class PrinterService:
             9: "completed",
         }
         return mapping.get(state, "unknown")
+
+    # ─────────────────────────────────────────────────────────────────
+    # PrinterPort interface implementation
+    # ─────────────────────────────────────────────────────────────────
+
+    async def print_image(self, image_path: str, copies: int = 1) -> PortPrintResult:
+        """Submit an image for printing (PrinterPort interface)."""
+        result = await self.print_file(image_path, copies)
+        return PortPrintResult(
+            success=result.success,
+            cups_job_id=result.job_id,
+            error_code=result.error_code.value if result.error_code else None,
+            error_message=result.error_message,
+        )
+
+    async def get_job_status(self, cups_job_id: int) -> str:
+        """Get the current status of a CUPS print job (PrinterPort interface)."""
+        status = await self._get_job_status_internal(cups_job_id)
+        if status is None:
+            return "unknown"
+        return status.get("state", "unknown")
+
+    async def get_printer_status(self) -> PortPrinterStatus:
+        """Get the current printer status (PrinterPort interface)."""
+        info = self.get_printer_info()
+        if info is None:
+            return PortPrinterStatus(
+                connected=False,
+                status="offline",
+                paper_status="unknown",
+                ink_status="unknown",
+                error_message="Printer not found",
+                queue_length=0,
+            )
+
+        # Map internal state to port status
+        status_map = {
+            PrinterState.IDLE: "ready",
+            PrinterState.PROCESSING: "processing",
+            PrinterState.PRINTING: "printing",
+            PrinterState.ERROR: "error",
+            PrinterState.OFFLINE: "offline",
+        }
+
+        return PortPrinterStatus(
+            connected=info.state != PrinterState.OFFLINE,
+            status=status_map.get(info.state, "unknown"),
+            paper_status="ok",  # Would need CUPS attributes for real status
+            ink_status="ok",  # Would need CUPS attributes for real status
+            error_message=info.state_message if info.state == PrinterState.ERROR else None,
+            queue_length=0,  # Could query CUPS for active jobs
+        )
+
+    async def is_ready(self) -> bool:
+        """Check if the printer is ready to accept jobs (PrinterPort interface)."""
+        return self.is_available()

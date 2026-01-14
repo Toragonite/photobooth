@@ -24,6 +24,7 @@ pycups==2.0.1;sys_platform=='linux'
 # Utilities
 python-dateutil==2.8.2
 aiofiles==23.2.1
+psutil==5.9.8
 
 # Scheduler
 APScheduler==3.10.4

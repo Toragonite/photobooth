@@ -3,17 +3,24 @@
 import io
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Tuple
 
+import aiofiles
 from PIL import Image, ImageDraw, ImageFont
 
+from ...application.ports.services.image_processor_port import (
+    CompositeOptions,
+    CompositeResult,
+    ImageProcessorPort,
+)
 from ...config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-class ImageProcessor:
+class ImageProcessor(ImageProcessorPort):
     """Service for image processing operations."""
 
     # 4x6 inch at 300 DPI
@@ -50,10 +57,10 @@ class ImageProcessor:
 
         return output.getvalue(), original_size[0], original_size[1]
 
-    def validate_image(
+    def validate_image_bytes(
         self, image_data: bytes
     ) -> Tuple[bool, str, Optional[Tuple[int, int]]]:
-        """Validate image data.
+        """Validate image data from bytes (internal method).
 
         Returns: (is_valid, error_message, dimensions)
         """
@@ -211,3 +218,86 @@ class ImageProcessor:
         """Get image dimensions."""
         img = Image.open(io.BytesIO(image_data))
         return img.size
+
+    # ─────────────────────────────────────────────────────────────────
+    # ImageProcessorPort interface implementation
+    # ─────────────────────────────────────────────────────────────────
+
+    async def generate_composite(
+        self,
+        photo_paths: List[str],
+        output_path: str,
+        options: Optional[CompositeOptions] = None,
+    ) -> CompositeResult:
+        """Generate a 4-cut composite image from individual photos (Port interface)."""
+        try:
+            # Read all photos
+            photos_data = []
+            for path in photo_paths:
+                async with aiofiles.open(path, "rb") as f:
+                    photos_data.append(await f.read())
+
+            # Create composite using existing method
+            opts = options or CompositeOptions()
+            composite_data = self.create_composite(
+                photos=photos_data,
+                include_date=opts.include_date,
+                include_logo=opts.include_logo,
+            )
+
+            # Write to output path
+            async with aiofiles.open(output_path, "wb") as f:
+                await f.write(composite_data)
+
+            return CompositeResult(success=True, output_path=output_path)
+
+        except Exception as e:
+            logger.error(f"Failed to generate composite: {e}")
+            return CompositeResult(success=False, error_message=str(e))
+
+    async def generate_thumbnail(
+        self, source_path: str, output_path: str, max_size: int = 300
+    ) -> str:
+        """Generate a thumbnail from an image (Port interface)."""
+        # Read source image
+        async with aiofiles.open(source_path, "rb") as f:
+            image_data = await f.read()
+
+        # Generate thumbnail using existing method
+        old_size = self.thumbnail_size
+        self.thumbnail_size = max_size
+        thumbnail_data, _, _ = self.create_thumbnail(image_data)
+        self.thumbnail_size = old_size
+
+        # Write to output path
+        async with aiofiles.open(output_path, "wb") as f:
+            await f.write(thumbnail_data)
+
+        return output_path
+
+    async def generate_test_pattern(self, pattern_type: str, output_path: str) -> str:
+        """Generate a test pattern image for printer calibration (Port interface)."""
+        # Import test pattern generator
+        from .test_pattern import TestPatternGenerator
+
+        generator = TestPatternGenerator()
+        pattern_data = generator.generate(pattern_type)
+
+        # Write to output path
+        async with aiofiles.open(output_path, "wb") as f:
+            await f.write(pattern_data)
+
+        return output_path
+
+    async def validate_image(self, image_path: str) -> bool:
+        """Validate that an image file is readable and properly formatted (Port interface)."""
+        try:
+            async with aiofiles.open(image_path, "rb") as f:
+                image_data = await f.read()
+
+            is_valid, _, _ = self.validate_image_bytes(image_data)
+            return is_valid
+
+        except Exception as e:
+            logger.error(f"Image validation failed: {e}")
+            return False
