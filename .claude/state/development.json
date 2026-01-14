@@ -3,8 +3,8 @@
   "lastUpdated": "2026-01-14T00:00:00Z",
   "currentFocus": {
     "useCase": null,
-    "component": "testing",
-    "description": "Deployment scripts complete. Frontend test coverage in progress."
+    "component": "backend-architecture",
+    "description": "Application layer (ports, DTOs, use cases) created. Repository implementations and DI pending."
   },
   "useCases": {
     "UC-001": {
@@ -210,13 +210,36 @@
           ]
         },
         "application": {
-          "progress": 100,
+          "progress": 80,
           "files": [
-            "backend/app/application/use_cases/session_use_cases.py",
-            "backend/app/application/use_cases/print_use_cases.py",
-            "backend/app/application/ports/printer_port.py",
-            "backend/app/application/ports/storage_port.py"
-          ]
+            "backend/app/application/ports/repositories/session_repository.py",
+            "backend/app/application/ports/repositories/print_job_repository.py",
+            "backend/app/application/ports/services/printer_port.py",
+            "backend/app/application/ports/services/storage_port.py",
+            "backend/app/application/ports/services/image_processor_port.py",
+            "backend/app/application/ports/services/system_service_port.py",
+            "backend/app/application/dto/session_dto.py",
+            "backend/app/application/dto/print_job_dto.py",
+            "backend/app/application/dto/admin_dto.py",
+            "backend/app/application/use_cases/session/create_session.py",
+            "backend/app/application/use_cases/session/get_session.py",
+            "backend/app/application/use_cases/session/capture_photo.py",
+            "backend/app/application/use_cases/session/generate_composite.py",
+            "backend/app/application/use_cases/session/abandon_session.py",
+            "backend/app/application/use_cases/print/submit_print_job.py",
+            "backend/app/application/use_cases/print/get_print_status.py",
+            "backend/app/application/use_cases/print/retry_print_job.py",
+            "backend/app/application/use_cases/print/cancel_print_job.py",
+            "backend/app/application/use_cases/admin/authenticate.py",
+            "backend/app/application/use_cases/admin/get_system_status.py",
+            "backend/app/application/use_cases/admin/get_print_history.py",
+            "backend/app/application/use_cases/admin/get_logs.py",
+            "backend/app/application/use_cases/admin/test_print.py",
+            "backend/app/application/use_cases/admin/reboot_system.py",
+            "backend/app/application/use_cases/system/cleanup_storage.py",
+            "backend/app/application/use_cases/system/health_check.py"
+          ],
+          "notes": "Ports, DTOs, and use cases created. Need repository implementations and DI container."
         },
         "adapters": {
           "progress": 100,
@@ -245,16 +268,20 @@
       }
     },
     "frontend": {
-      "progress": 90,
-      "lastTouched": "2026-01-13T22:00:00Z",
+      "progress": 100,
+      "lastTouched": "2026-01-14T10:00:00Z",
       "modules": {
         "components": {
-          "progress": 85,
+          "progress": 100,
           "files": [
             "frontend/src/components/common/HomeButton.tsx",
             "frontend/src/components/common/LanguageToggle.tsx",
             "frontend/src/components/common/LoadingSpinner.tsx",
-            "frontend/src/components/common/ErrorDisplay.tsx"
+            "frontend/src/components/common/ErrorDisplay.tsx",
+            "frontend/src/components/common/CountdownDisplay.tsx",
+            "frontend/src/components/common/ProgressRing.tsx",
+            "frontend/src/components/common/PhotoThumbnail.tsx",
+            "frontend/src/components/common/CopySelector.tsx"
           ]
         },
         "pages": {
@@ -271,15 +298,21 @@
           ]
         },
         "hooks": {
-          "progress": 80,
+          "progress": 100,
           "files": [
-            "frontend/src/hooks/useCamera.ts"
+            "frontend/src/hooks/useCamera.ts",
+            "frontend/src/hooks/useAsync.ts",
+            "frontend/src/hooks/useLocalStorage.ts",
+            "frontend/src/hooks/useCountdown.ts",
+            "frontend/src/hooks/usePrintJob.ts",
+            "frontend/src/hooks/index.ts"
           ]
         },
         "services": {
-          "progress": 90,
+          "progress": 100,
           "files": [
-            "frontend/src/services/api.ts"
+            "frontend/src/services/api.ts",
+            "frontend/src/services/adminApi.ts"
           ]
         }
       }
