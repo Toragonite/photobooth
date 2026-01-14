@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSettings } from "../contexts/SettingsContext";
-import { useCamera } from "../hooks/useCamera";
+import { useCamera, useCountdown } from "../hooks";
 import { api } from "../services/api";
-import { LoadingSpinner, ErrorDisplay } from "../components/common";
+import {
+  LoadingSpinner,
+  ErrorDisplay,
+  CountdownDisplay,
+  PhotoThumbnail,
+} from "../components/common";
 
 type CameraState =
   | "initializing"
@@ -21,11 +26,19 @@ export function CameraPage() {
 
   const [cameraState, setCameraState] = useState<CameraState>("initializing");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [countdown, setCountdown] = useState(0);
   const [selectedCountdown, setSelectedCountdown] = useState(
     settings.defaultCountdown,
   );
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    count: countdown,
+    isRunning: isCountdownRunning,
+    start: startCountdownTimer,
+    reset: resetCountdown,
+  } = useCountdown(selectedCountdown, {
+    onComplete: () => handleCapture(),
+  });
 
   const {
     videoRef,
@@ -54,25 +67,16 @@ export function CameraPage() {
     }
   }, [isReady, cameraError]);
 
-  // Handle countdown
+  // Sync countdown state with camera state
   useEffect(() => {
-    if (cameraState !== "countdown" || countdown <= 0) return;
-
-    const timer = setTimeout(() => {
-      if (countdown === 1) {
-        handleCapture();
-      } else {
-        setCountdown(countdown - 1);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraState, countdown]);
+    if (isCountdownRunning && cameraState !== "countdown") {
+      setCameraState("countdown");
+    }
+  }, [isCountdownRunning, cameraState]);
 
   const startCountdown = () => {
     setCameraState("countdown");
-    setCountdown(selectedCountdown);
+    startCountdownTimer(selectedCountdown);
   };
 
   const handleCapture = async () => {
@@ -154,11 +158,7 @@ export function CameraPage() {
 
             {/* Countdown overlay */}
             {cameraState === "countdown" && countdown > 0 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <span className="text-9xl font-bold text-white animate-pulse">
-                  {countdown}
-                </span>
-              </div>
+              <CountdownDisplay count={countdown} size="xl" variant="overlay" />
             )}
 
             {/* Flash effect */}
@@ -172,26 +172,14 @@ export function CameraPage() {
       {/* Thumbnail strip */}
       <div className="flex justify-center gap-3 mb-4">
         {[0, 1, 2, 3].map((index) => (
-          <button
+          <PhotoThumbnail
             key={index}
+            index={index}
+            src={photos[index]}
+            isActive={photos.length === index}
+            isClickable={!!photos[index]}
             onClick={() => photos[index] && handleRetake(index)}
-            disabled={!photos[index]}
-            className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all
-                       ${photos[index] ? "border-primary" : "border-gray-300 bg-gray-100"}
-                       ${photos[index] ? "hover:border-primary-dark hover:scale-105" : ""}`}
-          >
-            {photos[index] ? (
-              <img
-                src={photos[index]}
-                alt={`Photo ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="flex items-center justify-center h-full text-gray-400">
-                {index + 1}
-              </span>
-            )}
-          </button>
+          />
         ))}
       </div>
 

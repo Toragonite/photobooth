@@ -3,12 +3,18 @@
 import asyncio
 import logging
 import os
+import psutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
+from ...application.ports.services.system_service_port import (
+    LogEntry,
+    SystemHealth,
+    SystemServicePort,
+)
 from ...config import get_settings
 
 settings = get_settings()
@@ -55,8 +61,11 @@ class RebootStatus:
     can_cancel: bool = True
 
 
-class SystemService:
-    """Service for system management operations."""
+class SystemService(SystemServicePort):
+    """Service for system management operations.
+
+    Implements SystemServicePort interface for Clean Architecture compatibility.
+    """
 
     # Scheduled reboot task
     _reboot_task: Optional[asyncio.Task] = None
@@ -337,3 +346,160 @@ class SystemService:
             "delay_seconds": delay_seconds,
             "mock_mode": False,
         }
+
+    # ─────────────────────────────────────────────────────────────────
+    # SystemServicePort interface implementation
+    # ─────────────────────────────────────────────────────────────────
+
+    async def get_health(self) -> SystemHealth:
+        """Get current system health metrics (Port interface)."""
+        try:
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+
+            # Try to get CPU temperature (Raspberry Pi specific)
+            temperature = None
+            try:
+                with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                    temperature = int(f.read().strip()) / 1000.0
+            except (FileNotFoundError, PermissionError):
+                pass
+
+            # Determine overall health
+            if disk.percent > 95 or memory.percent > 95:
+                overall = "critical"
+            elif disk.percent > 85 or memory.percent > 85 or cpu_percent > 90:
+                overall = "degraded"
+            else:
+                overall = "healthy"
+
+            return SystemHealth(
+                overall=overall,
+                cpu_percent=cpu_percent,
+                memory_percent=memory.percent,
+                disk_percent=disk.percent,
+                temperature=temperature,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to get health: {e}")
+            return SystemHealth(
+                overall="critical",
+                cpu_percent=0.0,
+                memory_percent=0.0,
+                disk_percent=0.0,
+            )
+
+    async def restart_service(self, service_name: str) -> bool:
+        """Restart a system service (Port interface)."""
+        result = await self._restart_service_internal(service_name)
+        return result.get("success", False)
+
+    async def _restart_service_internal(self, service_name: str) -> Dict:
+        """Internal restart service implementation."""
+        # Validate service name
+        try:
+            service = ServiceName(service_name)
+        except ValueError:
+            return {
+                "success": False,
+                "error": f"Unknown service: {service_name}",
+            }
+
+        logger.warning(f"Restarting service: {service_name}")
+
+        if self.mock_mode:
+            await asyncio.sleep(1)
+            logger.info(f"Mock: Service {service_name} restarted")
+            return {
+                "success": True,
+                "service": service_name,
+                "message": f"Service {service_name} restarted (mock mode)",
+                "new_status": ServiceStatus.RUNNING.value,
+            }
+
+        try:
+            result = subprocess.run(
+                ["sudo", "systemctl", "restart", service.value],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                await asyncio.sleep(2)
+                new_status = self._get_service_status(service)
+                logger.info(f"Service {service_name} restarted successfully")
+                return {
+                    "success": True,
+                    "service": service_name,
+                    "message": f"Service {service_name} restarted",
+                    "new_status": new_status.value,
+                }
+            else:
+                logger.error(f"Failed to restart {service_name}: {result.stderr}")
+                return {
+                    "success": False,
+                    "service": service_name,
+                    "error": result.stderr.strip() or "Restart command failed",
+                }
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout restarting {service_name}")
+            return {
+                "success": False,
+                "service": service_name,
+                "error": "Restart command timed out",
+            }
+        except Exception as e:
+            logger.error(f"Exception restarting {service_name}: {e}")
+            return {
+                "success": False,
+                "service": service_name,
+                "error": str(e),
+            }
+
+    async def reboot_system(self, delay_seconds: int = 0) -> bool:
+        """Reboot the system (Port interface)."""
+        result = await self.schedule_reboot(delay_seconds=delay_seconds)
+        return result.get("success", False)
+
+    async def get_logs(
+        self,
+        source: str,
+        limit: int = 100,
+        level: Optional[str] = None,
+        since: Optional[datetime] = None,
+    ) -> List[LogEntry]:
+        """Retrieve system logs (Port interface)."""
+        # Import the log viewer service
+        from .log_viewer import LogViewerService
+
+        viewer = LogViewerService()
+
+        try:
+            logs = await viewer.get_logs(
+                source=source,
+                limit=limit,
+                level=level,
+                since=since,
+            )
+
+            return [
+                LogEntry(
+                    timestamp=log.get("timestamp", ""),
+                    level=log.get("level", "info"),
+                    source=source,
+                    message=log.get("message", ""),
+                )
+                for log in logs
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get logs: {e}")
+            return []
+
+    async def cancel_scheduled_reboot(self) -> bool:
+        """Cancel a scheduled reboot (Port interface)."""
+        result = await self.cancel_reboot()
+        return result.get("success", False)

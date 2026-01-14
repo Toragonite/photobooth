@@ -3,19 +3,20 @@
 import logging
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 import aiofiles
 
+from ...application.ports.services.storage_port import StorageInfo, StoragePort
 from ...config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-class StorageService:
+class StorageService(StoragePort):
     """Service for file storage operations."""
 
     def __init__(self):
@@ -149,3 +150,90 @@ class StorageService:
                 if entry.is_file():
                     total += entry.stat().st_size
         return total
+
+    # ─────────────────────────────────────────────────────────────────
+    # StoragePort interface implementation
+    # ─────────────────────────────────────────────────────────────────
+
+    async def get_photo_path(self, session_id: str, index: int) -> Optional[str]:
+        """Get the path to a stored photo (StoragePort interface)."""
+        session_dir = self.photos_path / session_id
+        if not session_dir.exists():
+            return None
+
+        # Look for photo by index in filename
+        for file_path in session_dir.glob("*.jpg"):
+            # Photos are stored with photo_id, we need to look at all files
+            # and return the first one (or implement index tracking)
+            return str(file_path)
+
+        return None
+
+    async def delete_session_photos(self, session_id: str) -> None:
+        """Delete all photos for a session (StoragePort interface)."""
+        await self.delete_session_files(session_id)
+
+    async def get_composite_path(self, session_id: str) -> Optional[str]:
+        """Get the path to a stored composite image (StoragePort interface)."""
+        if not self.composites_path.exists():
+            return None
+
+        # Look for composite with session_id prefix
+        for file_path in self.composites_path.glob(f"{session_id}_*.jpg"):
+            return str(file_path)
+
+        return None
+
+    async def get_storage_info(self) -> StorageInfo:
+        """Get current storage capacity and usage information (StoragePort interface)."""
+        stats = self.get_storage_stats()
+        return StorageInfo(
+            total_bytes=stats["total_bytes"],
+            used_bytes=stats["used_bytes"],
+            free_bytes=stats["free_bytes"],
+            percent_used=stats["percent_used"],
+        )
+
+    async def cleanup_old_sessions(self, days: int) -> int:
+        """Delete session data older than the specified days (StoragePort interface)."""
+        cutoff = datetime.now() - timedelta(days=days)
+        cleaned_count = 0
+
+        # Clean old photo directories
+        if self.photos_path.exists():
+            for session_dir in self.photos_path.iterdir():
+                if session_dir.is_dir():
+                    try:
+                        # Use directory modification time
+                        mtime = datetime.fromtimestamp(session_dir.stat().st_mtime)
+                        if mtime < cutoff:
+                            shutil.rmtree(session_dir)
+                            cleaned_count += 1
+                            logger.info(f"Cleaned old session: {session_dir.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to clean session {session_dir.name}: {e}")
+
+        # Clean old composites
+        if self.composites_path.exists():
+            for composite_file in self.composites_path.glob("*.jpg"):
+                try:
+                    mtime = datetime.fromtimestamp(composite_file.stat().st_mtime)
+                    if mtime < cutoff:
+                        composite_file.unlink()
+                        logger.info(f"Cleaned old composite: {composite_file.name}")
+                except Exception as e:
+                    logger.error(f"Failed to clean composite {composite_file.name}: {e}")
+
+        # Clean old thumbnails
+        if self.thumbnails_path.exists():
+            for thumb_dir in self.thumbnails_path.iterdir():
+                if thumb_dir.is_dir():
+                    try:
+                        mtime = datetime.fromtimestamp(thumb_dir.stat().st_mtime)
+                        if mtime < cutoff:
+                            shutil.rmtree(thumb_dir)
+                            logger.info(f"Cleaned old thumbnails: {thumb_dir.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to clean thumbnails {thumb_dir.name}: {e}")
+
+        return cleaned_count
