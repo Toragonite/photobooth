@@ -1,5 +1,6 @@
 """Admin API endpoints."""
 
+import hashlib
 import json
 import logging
 import os
@@ -96,8 +97,9 @@ async def get_admin_user(
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
 
         # Check if token is revoked
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:64]
         result = await db.execute(
-            select(AdminSessionModel).where(AdminSessionModel.token == token[:64])
+            select(AdminSessionModel).where(AdminSessionModel.token == token_hash)
         )
         db_session = result.scalar_one_or_none()
 
@@ -157,9 +159,10 @@ async def admin_login(
     }
     token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
-    # Store session
+    # Store session with hashed token
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:64]
     admin_session = AdminSessionModel(
-        token=token[:64],  # Store hash of token
+        token=token_hash,
         expires_at=expires_at,
     )
     db.add(admin_session)
@@ -185,8 +188,9 @@ async def admin_logout(
     if authorization:
         try:
             _, token = authorization.split()
+            token_hash = hashlib.sha256(token.encode()).hexdigest()[:64]
             result = await db.execute(
-                select(AdminSessionModel).where(AdminSessionModel.token == token[:64])
+                select(AdminSessionModel).where(AdminSessionModel.token == token_hash)
             )
             db_session = result.scalar_one_or_none()
             if db_session:
