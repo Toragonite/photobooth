@@ -49,6 +49,7 @@ class CompositeRequest(BaseModel):
 
     include_logo: bool = True
     include_date: bool = True
+    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
 
 
 class UpdateLanguageRequest(BaseModel):
@@ -323,6 +324,7 @@ async def generate_composite(
             session_id=session_id,
             include_date=request.include_date,
             include_logo=request.include_logo,
+            frame_type=request.frame_type,
         )
     )
 

@@ -1,8 +1,18 @@
 """Image processor service port."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import List, Optional
+
+
+class FrameType(str, Enum):
+    """Available frame templates for composite images."""
+    CLASSIC = "classic"        # Simple white frame, minimal padding
+    FILM_STRIP = "film_strip"  # Film strip style with sprocket holes
+    POLAROID = "polaroid"      # Polaroid style with large bottom margin
+    MINIMAL = "minimal"        # Edge-to-edge photos, thin borders
+    ROUNDED = "rounded"        # Rounded corners on photos
 
 
 @dataclass
@@ -11,6 +21,8 @@ class CompositeOptions:
     include_date: bool = True
     include_logo: bool = True
     background_color: str = "#FFFFFF"
+    frame_type: FrameType = FrameType.CLASSIC
+    bottom_margin: int = 60  # Extra margin at bottom for date/logo (in pixels)
 
 
 @dataclass

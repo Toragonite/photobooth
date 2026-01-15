@@ -9,7 +9,7 @@ import aiofiles
 from PIL import Image, ImageDraw, ImageFont
 
 from ...application.ports.services.image_processor_port import (
-    CompositeOptions, CompositeResult, ImageProcessorPort)
+    CompositeOptions, CompositeResult, FrameType, ImageProcessorPort)
 from ...config import get_settings
 
 settings = get_settings()
@@ -23,15 +23,88 @@ class ImageProcessor(ImageProcessorPort):
     COMPOSITE_WIDTH = 1200
     COMPOSITE_HEIGHT = 1800
 
-    # 4-cut layout: 2x2 grid with padding
-    PADDING = 20
-    PHOTO_WIDTH = (COMPOSITE_WIDTH - 3 * PADDING) // 2
-    PHOTO_HEIGHT = (COMPOSITE_HEIGHT - 4 * PADDING - 60) // 2  # 60px for date strip
+    # Frame template configurations
+    # Each template defines: padding, photo_gap, bottom_margin, corner_radius, has_film_holes
+    FRAME_CONFIGS = {
+        FrameType.CLASSIC: {
+            "padding": 20,
+            "photo_gap": 20,
+            "bottom_margin": 100,  # Increased from 60
+            "corner_radius": 0,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+        },
+        FrameType.FILM_STRIP: {
+            "padding": 40,
+            "photo_gap": 15,
+            "bottom_margin": 80,
+            "corner_radius": 0,
+            "has_film_holes": True,
+            "background_color": "#1A1A1A",
+        },
+        FrameType.POLAROID: {
+            "padding": 30,
+            "photo_gap": 25,
+            "bottom_margin": 150,  # Large bottom margin like real polaroid
+            "corner_radius": 0,
+            "has_film_holes": False,
+            "background_color": "#FAFAFA",
+        },
+        FrameType.MINIMAL: {
+            "padding": 8,
+            "photo_gap": 8,
+            "bottom_margin": 60,
+            "corner_radius": 0,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+        },
+        FrameType.ROUNDED: {
+            "padding": 25,
+            "photo_gap": 20,
+            "bottom_margin": 90,
+            "corner_radius": 20,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+        },
+    }
 
     def __init__(self):
         self.thumbnail_size = settings.thumbnail_size
         self.composite_quality = settings.composite_quality
         self.photo_quality = settings.photo_quality
+
+    def _get_frame_config(self, frame_type: FrameType) -> dict:
+        """Get configuration for a specific frame type."""
+        return self.FRAME_CONFIGS.get(frame_type, self.FRAME_CONFIGS[FrameType.CLASSIC])
+
+    def _calculate_photo_dimensions(self, frame_config: dict) -> Tuple[int, int]:
+        """Calculate photo dimensions based on frame configuration."""
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+        bottom_margin = frame_config["bottom_margin"]
+
+        # Calculate available space for photos
+        available_width = self.COMPOSITE_WIDTH - (2 * padding) - photo_gap
+        available_height = self.COMPOSITE_HEIGHT - (2 * padding) - photo_gap - bottom_margin
+
+        photo_width = available_width // 2
+        photo_height = available_height // 2
+
+        return photo_width, photo_height
+
+    def _calculate_photo_positions(
+        self, frame_config: dict, photo_width: int, photo_height: int
+    ) -> List[Tuple[int, int]]:
+        """Calculate positions for 4 photos in 2x2 grid."""
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+
+        return [
+            (padding, padding),  # Top-left
+            (padding + photo_width + photo_gap, padding),  # Top-right
+            (padding, padding + photo_height + photo_gap),  # Bottom-left
+            (padding + photo_width + photo_gap, padding + photo_height + photo_gap),  # Bottom-right
+        ]
 
     def create_thumbnail(self, image_data: bytes) -> Tuple[bytes, int, int]:
         """Create a thumbnail from image data.
@@ -92,6 +165,7 @@ class ImageProcessor(ImageProcessorPort):
         include_date: bool = True,
         include_logo: bool = False,
         date_text: Optional[str] = None,
+        frame_type: FrameType = FrameType.CLASSIC,
     ) -> bytes:
         """Create a 4-cut composite image.
 
@@ -100,6 +174,7 @@ class ImageProcessor(ImageProcessorPort):
             include_date: Whether to add date stamp
             include_logo: Whether to add logo (not implemented yet)
             date_text: Custom date text, defaults to current date
+            frame_type: Frame template to use
 
         Returns:
             Composite image as JPEG bytes
@@ -107,31 +182,36 @@ class ImageProcessor(ImageProcessorPort):
         if len(photos) != 4:
             raise ValueError(f"Expected 4 photos, got {len(photos)}")
 
-        # Create white canvas
+        # Get frame configuration
+        frame_config = self._get_frame_config(frame_type)
+        photo_width, photo_height = self._calculate_photo_dimensions(frame_config)
+        positions = self._calculate_photo_positions(frame_config, photo_width, photo_height)
+
+        # Create canvas with frame background color
+        bg_color = frame_config["background_color"]
         composite = Image.new(
-            "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), "white"
+            "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
         )
 
-        # Calculate positions for 2x2 grid
-        positions = [
-            (self.PADDING, self.PADDING),  # Top-left
-            (self.PADDING * 2 + self.PHOTO_WIDTH, self.PADDING),  # Top-right
-            (self.PADDING, self.PADDING * 2 + self.PHOTO_HEIGHT),  # Bottom-left
-            (
-                self.PADDING * 2 + self.PHOTO_WIDTH,
-                self.PADDING * 2 + self.PHOTO_HEIGHT,
-            ),  # Bottom-right
-        ]
+        # Add film strip holes if applicable
+        if frame_config["has_film_holes"]:
+            self._add_film_holes(composite)
 
         # Place each photo
+        corner_radius = frame_config["corner_radius"]
         for i, (photo_data, pos) in enumerate(zip(photos, positions)):
             try:
                 photo = Image.open(io.BytesIO(photo_data))
                 # Resize and crop to fit
-                photo = self._resize_and_crop(
-                    photo, (self.PHOTO_WIDTH, self.PHOTO_HEIGHT)
-                )
-                composite.paste(photo, pos)
+                photo = self._resize_and_crop(photo, (photo_width, photo_height))
+
+                # Apply rounded corners if needed
+                if corner_radius > 0:
+                    photo = self._apply_rounded_corners(photo, corner_radius)
+                    # Use alpha composite for rounded corners
+                    composite.paste(photo, pos, photo if photo.mode == "RGBA" else None)
+                else:
+                    composite.paste(photo, pos)
             except Exception as e:
                 logger.error(f"Failed to process photo {i}: {e}")
                 raise
@@ -139,7 +219,9 @@ class ImageProcessor(ImageProcessorPort):
         # Add date stamp
         if include_date:
             date_text = date_text or datetime.now().strftime("%Y.%m.%d")
-            self._add_date_stamp(composite, date_text)
+            text_color = "#FFFFFF" if frame_type == FrameType.FILM_STRIP else "#333333"
+            shadow_color = "#000000" if frame_type == FrameType.FILM_STRIP else "#888888"
+            self._add_date_stamp(composite, date_text, frame_config, text_color, shadow_color)
 
         # Add logo (placeholder for future implementation)
         if include_logo:
@@ -151,8 +233,53 @@ class ImageProcessor(ImageProcessorPort):
         composite.save(output, format="JPEG", quality=self.composite_quality)
         output.seek(0)
 
-        logger.info("Created composite image")
+        logger.info(f"Created composite image with frame type: {frame_type.value}")
         return output.getvalue()
+
+    def _add_film_holes(self, img: Image.Image) -> None:
+        """Add film strip sprocket holes to the edges."""
+        draw = ImageDraw.Draw(img)
+        hole_width = 20
+        hole_height = 30
+        hole_spacing = 60
+        margin = 10
+
+        # Draw holes on left and right edges
+        for y in range(30, self.COMPOSITE_HEIGHT - 30, hole_spacing):
+            # Left side
+            draw.rounded_rectangle(
+                [margin, y, margin + hole_width, y + hole_height],
+                radius=5,
+                fill="#2A2A2A",
+            )
+            # Right side
+            draw.rounded_rectangle(
+                [
+                    self.COMPOSITE_WIDTH - margin - hole_width,
+                    y,
+                    self.COMPOSITE_WIDTH - margin,
+                    y + hole_height,
+                ],
+                radius=5,
+                fill="#2A2A2A",
+            )
+
+    def _apply_rounded_corners(
+        self, img: Image.Image, radius: int
+    ) -> Image.Image:
+        """Apply rounded corners to an image."""
+        # Convert to RGBA for transparency
+        if img.mode != "RGBA":
+            img = img.convert("RGBA")
+
+        # Create mask with rounded corners
+        mask = Image.new("L", img.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.rounded_rectangle([(0, 0), img.size], radius=radius, fill=255)
+
+        # Apply mask
+        img.putalpha(mask)
+        return img
 
     def _resize_and_crop(
         self, img: Image.Image, target_size: Tuple[int, int]
@@ -177,7 +304,14 @@ class ImageProcessor(ImageProcessorPort):
 
         return img.crop((left, top, right, bottom))
 
-    def _add_date_stamp(self, img: Image.Image, date_text: str) -> None:
+    def _add_date_stamp(
+        self,
+        img: Image.Image,
+        date_text: str,
+        frame_config: Optional[dict] = None,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+    ) -> None:
         """Add date stamp to bottom of image."""
         draw = ImageDraw.Draw(img)
 
@@ -192,15 +326,25 @@ class ImageProcessor(ImageProcessorPort):
             except OSError:
                 font = ImageFont.load_default()
 
-        # Calculate position (center bottom)
+        # Calculate position (center bottom, respecting bottom margin)
         bbox = draw.textbbox((0, 0), date_text, font=font)
         text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
         x = (self.COMPOSITE_WIDTH - text_width) // 2
-        y = self.COMPOSITE_HEIGHT - 50
+
+        # Position text in the center of bottom margin area
+        if frame_config:
+            bottom_margin = frame_config["bottom_margin"]
+            padding = frame_config["padding"]
+            photo_height = self._calculate_photo_dimensions(frame_config)[1]
+            photos_bottom = padding + (photo_height * 2) + frame_config["photo_gap"]
+            y = photos_bottom + (bottom_margin - text_height) // 2
+        else:
+            y = self.COMPOSITE_HEIGHT - 50
 
         # Draw text with slight shadow for readability
-        draw.text((x + 2, y + 2), date_text, font=font, fill="#888888")
-        draw.text((x, y), date_text, font=font, fill="#333333")
+        draw.text((x + 2, y + 2), date_text, font=font, fill=shadow_color)
+        draw.text((x, y), date_text, font=font, fill=text_color)
 
     def compress_image(self, image_data: bytes, quality: int = 85) -> bytes:
         """Compress an image to reduce file size."""
@@ -239,6 +383,7 @@ class ImageProcessor(ImageProcessorPort):
                 photos=photos_data,
                 include_date=opts.include_date,
                 include_logo=opts.include_logo,
+                frame_type=opts.frame_type,
             )
 
             # Write to output path

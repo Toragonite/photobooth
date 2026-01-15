@@ -5,6 +5,23 @@ import { useSettings } from "../contexts/SettingsContext";
 import { api } from "../services/api";
 import { LoadingSpinner, CopySelector } from "../components/common";
 
+// Frame type options
+type FrameType = "classic" | "film_strip" | "polaroid" | "minimal" | "rounded";
+
+interface FrameOption {
+  id: FrameType;
+  labelKey: string;
+  icon: string;
+}
+
+const FRAME_OPTIONS: FrameOption[] = [
+  { id: "classic", labelKey: "preview.frames.classic", icon: "🖼️" },
+  { id: "film_strip", labelKey: "preview.frames.filmStrip", icon: "🎬" },
+  { id: "polaroid", labelKey: "preview.frames.polaroid", icon: "📷" },
+  { id: "minimal", labelKey: "preview.frames.minimal", icon: "⬜" },
+  { id: "rounded", labelKey: "preview.frames.rounded", icon: "🔲" },
+];
+
 export function PreviewPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -15,6 +32,7 @@ export function PreviewPage() {
   const [copies, setCopies] = useState(1);
   const [includeDate, setIncludeDate] = useState(true);
   const [includeLogo, setIncludeLogo] = useState(settings.logoEnabled);
+  const [frameType, setFrameType] = useState<FrameType>("classic");
   const [error, setError] = useState<string | null>(null);
 
   const sessionId = sessionStorage.getItem("sessionId");
@@ -33,10 +51,12 @@ export function PreviewPage() {
           sessionId,
           includeDate,
           includeLogo,
+          frameType,
         );
 
         if (response.success && response.data) {
-          setCompositeUrl(api.getCompositeUrl(sessionId));
+          // Add timestamp to bust cache when regenerating
+          setCompositeUrl(`${api.getCompositeUrl(sessionId)}?t=${Date.now()}`);
         } else {
           setError("Failed to generate composite");
         }
@@ -50,7 +70,7 @@ export function PreviewPage() {
 
     generateComposite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, includeDate, includeLogo]);
+  }, [sessionId, includeDate, includeLogo, frameType]);
 
   const handlePrint = async () => {
     if (!sessionId) return;
@@ -110,6 +130,27 @@ export function PreviewPage() {
       {/* Options */}
       {!isGenerating && compositeUrl && (
         <div className="space-y-4 mb-6">
+          {/* Frame selector */}
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-sm text-text-muted">{t("preview.selectFrame")}</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              {FRAME_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setFrameType(option.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
+                    frameType === option.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-gray-200 hover:border-primary/50"
+                  }`}
+                >
+                  <span>{option.icon}</span>
+                  <span className="text-sm">{t(option.labelKey)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Copy selector */}
           <div className="flex items-center justify-center gap-4">
             <CopySelector

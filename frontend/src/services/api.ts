@@ -203,12 +203,14 @@ class ApiClient {
     sessionId: string,
     includeDate: boolean = true,
     includeLogo: boolean = false,
+    frameType: string = "classic",
   ): Promise<ApiResponse<CompositeResult>> {
     return this.request(`/session/${sessionId}/composite`, {
       method: "POST",
       body: JSON.stringify({
         include_date: includeDate,
         include_logo: includeLogo,
+        frame_type: frameType,
       }),
     });
   }

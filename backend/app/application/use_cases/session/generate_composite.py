@@ -6,6 +6,7 @@ import aiofiles
 
 from app.application.ports.repositories import SessionRepository
 from app.application.ports.services import StoragePort
+from app.application.ports.services.image_processor_port import FrameType
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import SessionId
 from app.infrastructure.services.image_processor import ImageProcessor
@@ -17,6 +18,7 @@ class GenerateCompositeInput:
     session_id: str
     include_date: bool = True
     include_logo: bool = True
+    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
 
 
 @dataclass
@@ -63,12 +65,19 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 async with aiofiles.open(path, "rb") as f:
                     photos_data.append(await f.read())
 
+            # Parse frame type
+            try:
+                frame_type = FrameType(input_data.frame_type)
+            except ValueError:
+                frame_type = FrameType.CLASSIC
+
             # Create composite using ImageProcessor
             image_processor = ImageProcessor()
             composite_data = image_processor.create_composite(
                 photos=photos_data,
                 include_date=input_data.include_date,
                 include_logo=input_data.include_logo,
+                frame_type=frame_type,
             )
 
             # Save composite using storage service

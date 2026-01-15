@@ -28,6 +28,14 @@
     "title": "미리보기",
     "instruction": "사진을 확인하세요",
     "retakePhoto": "사진 다시 찍기",
+    "selectFrame": "프레임 선택",
+    "frames": {
+      "classic": "클래식",
+      "filmStrip": "필름",
+      "polaroid": "폴라로이드",
+      "minimal": "심플",
+      "rounded": "라운드"
+    },
     "copies": "인쇄 매수",
     "copiesCount": "{{count}}장",
     "includeDate": "날짜 표시",

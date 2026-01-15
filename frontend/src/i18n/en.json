@@ -28,6 +28,14 @@
     "title": "Preview",
     "instruction": "Review your photos",
     "retakePhoto": "Retake Photo",
+    "selectFrame": "Select Frame",
+    "frames": {
+      "classic": "Classic",
+      "filmStrip": "Film",
+      "polaroid": "Polaroid",
+      "minimal": "Minimal",
+      "rounded": "Rounded"
+    },
     "copies": "Copies",
     "copiesCount": "{{count}}",
     "includeDate": "Show Date",
