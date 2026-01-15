@@ -15,16 +15,18 @@ export function Layout() {
 
   return (
     <div className="page-container safe-top safe-bottom">
-      {/* Header */}
-      <header className="flex justify-between items-center mb-4">
-        <div className="w-16">{!hideHomeButton && <HomeButton />}</div>
-        <div className="w-16 flex justify-end">
+      {/* Header - fixed height, always present */}
+      <header className="layout-header flex justify-between items-center">
+        <div className="w-16 h-11 flex items-center">
+          {!hideHomeButton && <HomeButton />}
+        </div>
+        <div className="w-16 h-11 flex items-center justify-end">
           {!hideLanguageToggle && <LanguageToggle />}
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col">
+      {/* Main content - takes remaining space */}
+      <main className="layout-main">
         <Outlet />
       </main>
     </div>

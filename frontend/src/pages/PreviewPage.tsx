@@ -92,26 +92,28 @@ export function PreviewPage() {
     navigate("/camera");
   };
 
+  const showOptions = !isGenerating && compositeUrl;
+
   return (
     <div className="flex flex-col h-full">
-      {/* Title */}
-      <div className="text-center mb-4">
-        <h1 className="text-3xl font-bold text-primary">
+      {/* Title - fixed height */}
+      <div className="section-fixed h-14 text-center flex flex-col justify-center">
+        <h1 className="text-2xl font-bold text-primary">
           {t("preview.title")}
         </h1>
-        <p className="text-text-muted mt-1">{t("preview.instruction")}</p>
+        <p className="text-text-muted text-sm">{t("preview.instruction")}</p>
       </div>
 
-      {/* Composite preview */}
-      <div className="flex-1 flex items-center justify-center mb-4">
+      {/* Composite preview - grows to fill space */}
+      <div className="section-grow flex items-center justify-center py-2">
         {isGenerating ? (
           <LoadingSpinner message={t("preview.generating")} />
         ) : compositeUrl ? (
-          <div className="max-h-[60vh] rounded-2xl overflow-hidden shadow-lg">
+          <div className="h-full flex items-center justify-center">
             <img
               src={compositeUrl}
               alt="Composite preview"
-              className="max-h-[60vh] w-auto"
+              className="max-h-full max-w-full object-contain rounded-2xl shadow-lg"
             />
           </div>
         ) : error ? (
@@ -127,75 +129,75 @@ export function PreviewPage() {
         ) : null}
       </div>
 
-      {/* Options */}
-      {!isGenerating && compositeUrl && (
-        <div className="space-y-4 mb-6">
-          {/* Frame selector */}
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-sm text-text-muted">{t("preview.selectFrame")}</span>
-            <div className="flex flex-wrap justify-center gap-2">
-              {FRAME_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setFrameType(option.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
-                    frameType === option.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-gray-200 hover:border-primary/50"
-                  }`}
-                >
-                  <span>{option.icon}</span>
-                  <span className="text-sm">{t(option.labelKey)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Copy selector */}
-          <div className="flex items-center justify-center gap-4">
-            <CopySelector
-              value={copies}
-              onChange={setCopies}
-              max={settings.maxCopies}
-              label={t("preview.copies")}
-            />
-          </div>
-
-          {/* Toggles */}
-          <div className="flex items-center justify-center gap-6">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeDate}
-                onChange={(e) => setIncludeDate(e.target.checked)}
-                className="w-5 h-5 rounded accent-primary"
-              />
-              <span>{t("preview.includeDate")}</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeLogo}
-                onChange={(e) => setIncludeLogo(e.target.checked)}
-                className="w-5 h-5 rounded accent-primary"
-              />
-              <span>{t("preview.includeLogo")}</span>
-            </label>
-          </div>
+      {/* Options - fixed height container */}
+      <div className="section-fixed h-36 flex flex-col justify-center gap-2">
+        {/* Frame selector */}
+        <div
+          className={`flex flex-wrap justify-center gap-1.5 transition-opacity duration-200 ${
+            showOptions ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          {FRAME_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => setFrameType(option.id)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all text-sm ${
+                frameType === option.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-200 hover:border-primary/50"
+              }`}
+            >
+              <span>{option.icon}</span>
+              <span className="text-xs">{t(option.labelKey)}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="flex gap-4 justify-center">
-        <button onClick={handleRetake} className="btn-outline">
+        {/* Copy selector & Toggles row */}
+        <div
+          className={`flex items-center justify-center gap-4 transition-opacity duration-200 ${
+            showOptions ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <CopySelector
+            value={copies}
+            onChange={setCopies}
+            max={settings.maxCopies}
+            label={t("preview.copies")}
+          />
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              checked={includeDate}
+              onChange={(e) => setIncludeDate(e.target.checked)}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <span>{t("preview.includeDate")}</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              checked={includeLogo}
+              onChange={(e) => setIncludeLogo(e.target.checked)}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <span>{t("preview.includeLogo")}</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Actions - fixed height */}
+      <div className="section-fixed h-16 flex gap-4 justify-center items-center">
+        <button onClick={handleRetake} className="btn-outline py-3 px-6 min-h-0">
           {t("preview.retakePhoto")}
         </button>
 
         <button
           onClick={handlePrint}
           disabled={isGenerating || !compositeUrl}
-          className="btn-primary"
+          className="btn-primary py-3 px-6 min-h-0"
         >
           {t("preview.print")}
         </button>
