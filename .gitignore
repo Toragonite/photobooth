@@ -33,6 +33,9 @@ build/
 # Docker
 *.log
 
+# SSL certificates (generated locally)
+docker/nginx/ssl/
+
 # Data (production)
 data/
 *.db
