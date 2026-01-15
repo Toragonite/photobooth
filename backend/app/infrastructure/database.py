@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 from sqlalchemy import (CheckConstraint, Column, DateTime, ForeignKey, Index,
-                        Integer, String, Text)
+                        Integer, String, Text, text)
 from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
                                     create_async_engine)
 from sqlalchemy.orm import declarative_base, relationship
@@ -213,8 +213,8 @@ async def init_db():
     """Initialize database and create tables."""
     async with engine.begin() as conn:
         # Enable foreign keys for SQLite
-        await conn.execute("PRAGMA foreign_keys = ON")
-        await conn.execute("PRAGMA journal_mode = WAL")
+        await conn.execute(text("PRAGMA foreign_keys = ON"))
+        await conn.execute(text("PRAGMA journal_mode = WAL"))
         await conn.run_sync(Base.metadata.create_all)
 
     # Seed default settings

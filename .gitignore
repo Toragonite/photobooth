@@ -36,3 +36,5 @@ build/
 # Data (production)
 data/
 *.db
+
+*.pem
