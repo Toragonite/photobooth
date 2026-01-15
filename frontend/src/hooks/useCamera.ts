@@ -1,14 +1,14 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from 'react';
 import {
   EnhancementSettings,
   DEFAULT_ENHANCEMENT,
   applyEnhancement,
   hasEnhancement,
-} from "../utils/imageEnhancement";
-import { LayoutType, LAYOUT_CONFIGS } from "../types/layout";
+} from '../utils/imageEnhancement';
+import { LayoutType, LAYOUT_CONFIGS } from '../types/layout';
 
 interface UseCameraOptions {
-  facingMode?: "user" | "environment";
+  facingMode?: 'user' | 'environment';
   width?: number;
   height?: number;
   layoutType?: LayoutType;
@@ -27,7 +27,7 @@ interface UseCameraReturn {
 }
 
 export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
-  const { facingMode = "user", layoutType = "2x2" } = options;
+  const { facingMode = 'user', layoutType = '2x2' } = options;
 
   // Get resolution based on layout type
   const layoutConfig = LAYOUT_CONFIGS[layoutType];
@@ -39,16 +39,15 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [enhancement, setEnhancement] = useState<EnhancementSettings>(DEFAULT_ENHANCEMENT);
+  const [enhancement, setEnhancement] =
+    useState<EnhancementSettings>(DEFAULT_ENHANCEMENT);
 
   const start = useCallback(async () => {
     try {
       setError(null);
       setIsReady(false);
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera API not available");
-      }
+      console.log('[Camera] Starting camera...');
 
       const constraints: MediaStreamConstraints = {
         video: {
@@ -59,41 +58,49 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
         audio: false,
       };
 
+      console.log(
+        '[Camera] Requesting getUserMedia with constraints:',
+        constraints,
+      );
       const mediaStream =
         await navigator.mediaDevices.getUserMedia(constraints);
-
+      console.log('[Camera] Got media stream:', mediaStream.id);
       setStream(mediaStream);
 
+      console.log('[Camera] videoRef.current:', videoRef.current);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-
+        console.log('[Camera] Set srcObject, waiting for loadedmetadata...');
         videoRef.current.onloadedmetadata = async () => {
+          console.log('[Camera] loadedmetadata fired');
           try {
             await videoRef.current?.play();
+            console.log('[Camera] Video playing, setting isReady=true');
             setIsReady(true);
           } catch (playError) {
-            console.error("Video play error:", playError);
-            setIsReady(true);
+            console.error('[Camera] Video play error:', playError);
+            setError('Failed to play video stream');
           }
         };
       } else {
-        setError("Video element not found");
+        console.error('[Camera] videoRef.current is null!');
+        setError('Video element not found');
       }
     } catch (err) {
-      console.error("Camera start error:", err);
+      console.error('Camera start error:', err);
 
       if (err instanceof Error) {
-        if (err.name === "NotAllowedError") {
-          setError("Camera permission denied");
-        } else if (err.name === "NotFoundError") {
-          setError("No camera found");
-        } else if (err.name === "NotSupportedError") {
-          setError("Camera not supported");
+        if (err.name === 'NotAllowedError') {
+          setError('Camera permission denied');
+        } else if (err.name === 'NotFoundError') {
+          setError('No camera found');
+        } else if (err.name === 'NotSupportedError') {
+          setError('Camera not supported');
         } else {
           setError(`Camera error: ${err.message}`);
         }
       } else {
-        setError("Unknown camera error");
+        setError('Unknown camera error');
       }
     }
   }, [facingMode, width, height]);
@@ -118,7 +125,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
 
     // Create canvas if not exists
     if (!canvasRef.current) {
-      canvasRef.current = document.createElement("canvas");
+      canvasRef.current = document.createElement('canvas');
     }
     const canvas = canvasRef.current;
 
@@ -126,7 +133,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) {
       return null;
     }
@@ -147,7 +154,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     }
 
     // Convert to JPEG
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return canvas.toDataURL('image/jpeg', 0.92);
   }, [isReady, enhancement]);
 
   return {

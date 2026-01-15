@@ -1,15 +1,19 @@
 # PhotoBooth Backend Dockerfile
-FROM python:3.11-slim
+# Multi-stage build to minimize final image size
 
-# Set environment variables
+# ─────────────────────────────────────────────────────────────────
+# Stage 1: Builder - compile native extensions
+# ─────────────────────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Set work directory
-WORKDIR /app
+WORKDIR /build
 
 # Install system dependencies (including build tools for pycups, psutil)
+# Install build dependencies (gcc, python3-dev for pycups/psutil)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
@@ -19,12 +23,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
+# Install Python dependencies to /install
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --prefix=/install -r requirements.txt
+
+# ─────────────────────────────────────────────────────────────────
+# Stage 2: Runtime - minimal image without gcc
+# ─────────────────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install runtime dependencies only (no gcc/python3-dev)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcups2 \
+    libjpeg62-turbo \
+    zlib1g \
+    libpng16-16 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY . .

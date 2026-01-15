@@ -650,6 +650,80 @@ docker compose restart backend
 
 ---
 
+## SSL Setup for Camera API (Required)
+
+> **Important**: Camera API (`getUserMedia`) requires HTTPS on non-localhost connections. iPad Safari will reject camera permissions without a trusted SSL certificate.
+
+### Option 1: mkcert (Recommended for On-Premise)
+
+mkcert creates locally-trusted certificates that work with iOS Safari.
+
+#### On Raspberry Pi:
+
+```bash
+# Install mkcert
+sudo apt install -y libnss3-tools
+wget https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-arm64
+chmod +x mkcert-v1.4.4-linux-arm64
+sudo mv mkcert-v1.4.4-linux-arm64 /usr/local/bin/mkcert
+
+# Create local CA
+mkcert -install
+
+# Generate certificate for photobooth
+mkcert -cert-file /home/pi/photobooth/ssl/server.crt \
+       -key-file /home/pi/photobooth/ssl/server.key \
+       photobooth.local 192.168.4.1 localhost
+
+# Export CA certificate for iPad installation
+cp "$(mkcert -CAROOT)/rootCA.pem" /home/pi/photobooth/ssl/photobooth-ca.pem
+```
+
+#### Install CA on iPad:
+
+1. **Transfer CA certificate to iPad**:
+   - Copy `photobooth-ca.pem` to a web-accessible location
+   - Or use AirDrop from Mac
+
+2. **Install certificate**:
+   - Open the `.pem` file on iPad
+   - Go to Settings → General → VPN & Device Management
+   - Install the "mkcert" profile
+
+3. **Trust the certificate**:
+   - Settings → General → About → Certificate Trust Settings
+   - Enable "Full trust" for mkcert
+
+4. **Verify**:
+   - Connect to `photobooth` Wi-Fi
+   - Open Safari: `https://photobooth.local`
+   - Should show secure connection (no warning)
+
+### Nginx SSL Configuration
+
+Update docker-compose.yml to mount SSL certificates:
+
+```yaml
+services:
+  nginx:
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+```
+
+### Option 2: Self-Signed (Development Only)
+
+Self-signed certificates work but require manual trust on each device. Camera API may still fail on iOS Safari.
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ssl/server.key \
+  -out ssl/server.crt \
+  -subj "/CN=photobooth.local" \
+  -addext "subjectAltName=DNS:photobooth.local,IP:192.168.4.1"
+```
+
+---
+
 ## Security Checklist
 
 - [ ] Change default Pi password
