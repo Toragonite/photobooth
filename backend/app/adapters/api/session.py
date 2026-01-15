@@ -357,7 +357,8 @@ async def get_composite(
     if not session.composite_path:
         raise HTTPException(status_code=404, detail="Composite not generated")
 
-    data = await storage.get_composite_path(session.composite_path)
+    # Read the composite file
+    data = await storage.read_file(session.composite_path)
     if not data:
         raise HTTPException(status_code=404, detail="Composite file not found")
 
@@ -387,7 +388,7 @@ async def get_composite_thumbnail(
 
     # For thumbnail, we could generate on-the-fly or use a cached version
     # For now, return the full composite (frontend can scale)
-    data = await storage.get_composite_path(session.composite_path)
+    data = await storage.read_file(session.composite_path)
     if not data:
         raise HTTPException(status_code=404, detail="Composite file not found")
 
