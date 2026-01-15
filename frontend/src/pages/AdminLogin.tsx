@@ -10,6 +10,7 @@ export function AdminLogin() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,16 +22,21 @@ export function AdminLogin() {
     try {
       setIsLoading(true);
       setError(null);
+      setDebugInfo("Calling login API...");
 
       const response = await adminApi.login(pin);
+      setDebugInfo(`Response: ${JSON.stringify(response)}`);
 
       if (response.success && response.data?.token) {
+        setDebugInfo(`Token received, navigating to dashboard...`);
         navigate("/admin/dashboard");
       } else {
+        setDebugInfo(`Login failed: ${JSON.stringify(response)}`);
         setError(t("admin.login.invalidPin"));
       }
     } catch (err) {
       console.error("Login failed:", err);
+      setDebugInfo(`Exception: ${err}`);
       setError(t("admin.login.invalidPin"));
     } finally {
       setIsLoading(false);
@@ -85,6 +91,13 @@ export function AdminLogin() {
             </div>
           ))}
         </div>
+
+        {/* Debug info */}
+        {debugInfo && (
+          <div className="mb-4 p-2 bg-black text-green-400 text-xs rounded font-mono break-all">
+            {debugInfo}
+          </div>
+        )}
 
         {/* Error message */}
         {error && <p className="text-error text-center mb-4">{error}</p>}

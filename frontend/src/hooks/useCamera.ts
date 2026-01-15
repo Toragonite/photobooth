@@ -14,6 +14,7 @@ interface UseCameraReturn {
   start: () => Promise<void>;
   stop: () => void;
   capture: () => Promise<string | null>;
+  debugLog: string[];
 }
 
 export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
@@ -24,11 +25,27 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setDebugLog((prev) => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  };
 
   const start = useCallback(async () => {
     try {
       setError(null);
       setIsReady(false);
+      setDebugLog([]);
+
+      addLog("Starting camera...");
+      addLog(`mediaDevices: ${!!navigator.mediaDevices}`);
+      addLog(`getUserMedia: ${!!navigator.mediaDevices?.getUserMedia}`);
+      addLog(`Protocol: ${window.location.protocol}`);
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera API not available");
+      }
 
       const constraints: MediaStreamConstraints = {
         video: {
@@ -39,18 +56,38 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
         audio: false,
       };
 
+      addLog("Requesting getUserMedia...");
+
       const mediaStream =
         await navigator.mediaDevices.getUserMedia(constraints);
+
+      addLog(`Got stream! Tracks: ${mediaStream.getTracks().length}`);
+
       setStream(mediaStream);
+
+      addLog(`videoRef exists: ${!!videoRef.current}`);
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = () => {
-          setIsReady(true);
+        addLog("srcObject set");
+
+        videoRef.current.onloadedmetadata = async () => {
+          addLog("Metadata loaded");
+          try {
+            await videoRef.current?.play();
+            addLog("Video playing!");
+            setIsReady(true);
+          } catch (playError) {
+            addLog(`Play error: ${playError}`);
+            setIsReady(true);
+          }
         };
+      } else {
+        addLog("ERROR: videoRef is null!");
+        setError("Video element not found");
       }
     } catch (err) {
-      console.error("Camera start error:", err);
+      addLog(`ERROR: ${err}`);
 
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
@@ -123,5 +160,6 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     start,
     stop,
     capture,
+    debugLog,
   };
 }
