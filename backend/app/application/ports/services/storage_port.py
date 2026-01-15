@@ -22,8 +22,13 @@ class StoragePort(ABC):
     """Abstract port for file storage operations."""
 
     @abstractmethod
-    async def save_photo(self, session_id: str, index: int, data: bytes) -> str:
+    async def save_photo(self, session_id: str, photo_id: str, data: bytes) -> str:
         """Save a photo to storage. Returns the file path."""
+        ...
+
+    @abstractmethod
+    async def save_thumbnail(self, session_id: str, photo_id: str, data: bytes) -> str:
+        """Save a thumbnail to storage. Returns the file path."""
         ...
 
     @abstractmethod

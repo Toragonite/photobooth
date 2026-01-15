@@ -10,7 +10,6 @@ export function AdminLogin() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>("");
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) {
@@ -25,23 +24,27 @@ export function AdminLogin() {
     try {
       setIsLoading(true);
       setError(null);
-      setDebugInfo("Calling login API...");
 
       const response = await adminApi.login(pin);
-      setDebugInfo(`Response: ${JSON.stringify(response)}`);
 
       if (response.success && response.data?.token) {
-        setDebugInfo(`Token received, navigating to dashboard...`);
-        navigate("/admin/dashboard");
+        // Verify token was saved before navigating
+        const savedToken = localStorage.getItem("adminToken");
+        if (savedToken) {
+          navigate("/admin/dashboard", { replace: true });
+        } else {
+          // Token wasn't saved, try again
+          localStorage.setItem("adminToken", response.data.token);
+          localStorage.setItem("adminTokenExpires", response.data.expires_at);
+          navigate("/admin/dashboard", { replace: true });
+        }
       } else {
-        setDebugInfo(`Login failed: ${JSON.stringify(response)}`);
         setError(t("admin.login.invalidPin"));
+        setIsLoading(false);
       }
     } catch (err) {
       console.error("Login failed:", err);
-      setDebugInfo(`Exception: ${err}`);
       setError(t("admin.login.invalidPin"));
-    } finally {
       setIsLoading(false);
     }
   };
@@ -94,13 +97,6 @@ export function AdminLogin() {
             </div>
           ))}
         </div>
-
-        {/* Debug info */}
-        {debugInfo && (
-          <div className="mb-4 p-2 bg-black text-green-400 text-xs rounded font-mono break-all">
-            {debugInfo}
-          </div>
-        )}
 
         {/* Error message */}
         {error && <p className="text-error text-center mb-4">{error}</p>}

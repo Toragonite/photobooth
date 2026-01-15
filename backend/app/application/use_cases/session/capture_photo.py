@@ -8,6 +8,7 @@ from app.application.ports.services import ImageProcessorPort, StoragePort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import Photo
 from app.domain.value_objects import SessionId
+from app.infrastructure.services.image_processor import ImageProcessor
 
 
 @dataclass
@@ -47,13 +48,34 @@ class CapturePhotoUseCase(UseCase[PhotoDTO]):
         # Check if photo already exists at this index
         existing = session.get_photo(input_data.photo_index)
 
+        # Get image dimensions and size
+        image_processor = ImageProcessor()
+        width, height = image_processor.get_image_dimensions(input_data.image_data)
+        size_bytes = len(input_data.image_data)
+
+        # Create thumbnail
+        thumbnail_data, _, _ = image_processor.create_thumbnail(input_data.image_data)
+
         # Save photo to storage
         photo_path = await self._storage.save_photo(
-            input_data.session_id, input_data.photo_index, input_data.image_data
+            input_data.session_id, str(input_data.photo_index), input_data.image_data
         )
 
-        # Create photo entity
-        photo = Photo.create(index=input_data.photo_index, path=photo_path)
+        # Save thumbnail to storage
+        thumbnail_path = await self._storage.save_thumbnail(
+            input_data.session_id, str(input_data.photo_index), thumbnail_data
+        )
+
+        # Create photo entity with all required fields
+        photo = Photo.create(
+            session_id=sid,
+            index=input_data.photo_index,
+            file_path=photo_path,
+            thumbnail_path=thumbnail_path,
+            width=width,
+            height=height,
+            size_bytes=size_bytes,
+        )
 
         if existing:
             session.replace_photo(photo)
@@ -65,7 +87,7 @@ class CapturePhotoUseCase(UseCase[PhotoDTO]):
         return UseCaseResult.ok(
             PhotoDTO(
                 index=photo.index,
-                path=photo.path,
+                path=photo.file_path,
                 thumbnail_path=photo.thumbnail_path,
                 captured_at=photo.captured_at,
             )

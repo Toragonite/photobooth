@@ -47,7 +47,6 @@ export function CameraPage() {
     capture,
     start,
     stop,
-    debugLog,
   } = useCamera();
 
   // Initialize camera on mount
@@ -138,16 +137,6 @@ export function CameraPage() {
       <div className="text-center mb-4">
         <h1 className="text-3xl font-bold text-primary">{t("camera.title")}</h1>
         <p className="text-text-muted mt-1">{photos.length} / 4</p>
-        {/* Debug info - remove later */}
-        <p className="text-xs text-red-500">
-          State: {cameraState} | Ready: {isReady ? "Y" : "N"} | Error: {cameraError || "none"}
-        </p>
-        {/* Debug log */}
-        <div className="mt-2 p-2 bg-black text-green-400 text-xs text-left rounded max-h-32 overflow-y-auto font-mono">
-          {debugLog.length === 0 ? "Waiting for logs..." : debugLog.map((log, i) => (
-            <div key={i}>{log}</div>
-          ))}
-        </div>
       </div>
 
       {/* Camera preview */}
