@@ -22,8 +22,14 @@ class SQLAlchemySessionRepository(SessionRepository):
 
     async def save(self, session: PhotoSession) -> None:
         """Save or update a photo session."""
-        # Check if session exists
-        existing = await self._db.get(SessionModel, session.id.value)
+        # Check if session exists with photos eagerly loaded
+        stmt = (
+            select(SessionModel)
+            .options(selectinload(SessionModel.photos))
+            .where(SessionModel.id == session.id.value)
+        )
+        result = await self._db.execute(stmt)
+        existing = result.scalar_one_or_none()
 
         if existing:
             # Update existing session
