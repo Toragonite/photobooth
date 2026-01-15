@@ -1,5 +1,7 @@
 """Submit print job use case."""
 
+import asyncio
+import logging
 from dataclasses import dataclass
 
 from app.application.dto.print_job_dto import PrintJobDTO
@@ -8,7 +10,9 @@ from app.application.ports.repositories import (PrintJobRepository,
 from app.application.ports.services import PrinterPort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import PrintJob
-from app.domain.value_objects import SessionId, SessionStatus
+from app.domain.value_objects import ErrorCode, SessionId, SessionStatus
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,6 +67,11 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
         job = PrintJob.create(session_id=sid, copies=input_data.copies)
         await self._print_job_repo.save(job)
 
+        # Start print job in background
+        asyncio.create_task(
+            self._process_print_job(job, session.composite_path)
+        )
+
         return UseCaseResult.ok(
             PrintJobDTO(
                 id=str(job.id),
@@ -77,3 +86,70 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                 completed_at=job.completed_at,
             )
         )
+
+    async def _process_print_job(self, job: PrintJob, composite_path: str) -> None:
+        """Process the print job in background."""
+        try:
+            # composite_path is already absolute path from storage service
+            file_path = composite_path
+            logger.info(f"Starting print job {job.id} for file: {file_path}")
+
+            # Start processing
+            job.start_processing()
+            await self._print_job_repo.save(job)
+
+            # Submit to printer
+            result = await self._printer.print_image(file_path, job.copies)
+
+            if result.success and result.cups_job_id:
+                job.mark_printing(result.cups_job_id)
+                await self._print_job_repo.save(job)
+                logger.info(f"Print job {job.id} submitted to CUPS: {result.cups_job_id}")
+
+                # Monitor print job completion
+                await self._monitor_print_job(job, result.cups_job_id)
+            else:
+                error_code = ErrorCode(result.error_code) if result.error_code else ErrorCode.CUPS_REJECTED
+                job.mark_error(error_code, result.error_message or "Print submission failed")
+                await self._print_job_repo.save(job)
+                logger.error(f"Print job {job.id} failed: {result.error_message}")
+
+        except Exception as e:
+            logger.exception(f"Error processing print job {job.id}: {e}")
+            job.mark_error(ErrorCode.CUPS_REJECTED, str(e))
+            await self._print_job_repo.save(job)
+
+    async def _monitor_print_job(self, job: PrintJob, cups_job_id: int) -> None:
+        """Monitor CUPS job until completion."""
+        max_wait = 120  # 2 minutes max
+        poll_interval = 2  # Check every 2 seconds
+        elapsed = 0
+
+        while elapsed < max_wait:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            status = await self._printer.get_job_status(cups_job_id)
+            logger.debug(f"Print job {job.id} CUPS status: {status}")
+
+            if status == "completed":
+                job.mark_completed()
+                await self._print_job_repo.save(job)
+                logger.info(f"Print job {job.id} completed successfully")
+                return
+            elif status in ("cancelled", "failed", "aborted"):
+                job.mark_error(ErrorCode.CUPS_REJECTED, f"CUPS job {status}")
+                await self._print_job_repo.save(job)
+                logger.error(f"Print job {job.id} failed with status: {status}")
+                return
+            elif status == "unknown":
+                # Job might have completed and been removed from queue
+                job.mark_completed()
+                await self._print_job_repo.save(job)
+                logger.info(f"Print job {job.id} assumed completed (not in queue)")
+                return
+
+        # Timeout
+        logger.warning(f"Print job {job.id} timed out after {max_wait}s")
+        job.mark_error(ErrorCode.CUPS_REJECTED, "Print job timed out")
+        await self._print_job_repo.save(job)

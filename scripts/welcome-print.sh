@@ -70,13 +70,26 @@ if [[ ! -f "$WELCOME_IMAGE" ]]; then
     exit 1
 fi
 
-# Check if printer is available
-if ! lpstat -p "$PRINTER_NAME" &>/dev/null; then
-    log "ERROR: Printer '$PRINTER_NAME' not found"
-    log "Available printers:"
-    lpstat -p 2>/dev/null || log "No printers configured"
-    exit 1
-fi
+# Wait for printer with retry (max 2 minutes)
+MAX_RETRIES=12
+RETRY_INTERVAL=10
+retry_count=0
+
+log "Waiting for printer '$PRINTER_NAME'..."
+
+while ! lpstat -p "$PRINTER_NAME" &>/dev/null; do
+    retry_count=$((retry_count + 1))
+    if [[ $retry_count -ge $MAX_RETRIES ]]; then
+        log "ERROR: Printer '$PRINTER_NAME' not found after ${MAX_RETRIES} attempts"
+        log "Available printers:"
+        lpstat -p 2>/dev/null || log "No printers configured"
+        exit 1
+    fi
+    log "Printer not ready, waiting ${RETRY_INTERVAL}s... (attempt $retry_count/$MAX_RETRIES)"
+    sleep $RETRY_INTERVAL
+done
+
+log "Printer '$PRINTER_NAME' found"
 
 # Check printer status
 printer_status=$(lpstat -p "$PRINTER_NAME" 2>/dev/null | head -1)
