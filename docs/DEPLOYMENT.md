@@ -187,10 +187,15 @@ sudo systemctl start dnsmasq
 
 ## CUPS Printer Setup
 
-### 1. Install CUPS
+> **Tested configuration (2026-01-16):**
+> - USB: `Bus 001 Device 003: ID 04a9:3302 Canon, Inc. SELPHY CP1500`
+> - Driver: `gutenprint.5.3://canon-cp1300/expert` (CP1300 is compatible with CP1500)
+> - Media: `w288h432` (4x6 postcard)
+
+### 1. Install CUPS and Gutenprint Driver
 
 ```bash
-sudo apt install -y cups cups-client
+sudo apt install -y cups cups-client printer-driver-gutenprint
 ```
 
 ### 2. Configure CUPS
@@ -203,33 +208,69 @@ sudo cupsctl --remote-admin
 sudo usermod -aG lpadmin pi
 ```
 
-### 3. Add Printer
+### 3. Verify Printer Detection
 
 ```bash
-# Connect Canon Selphy CP1500 via USB
+# Connect Canon Selphy CP1500 via USB and power on
 
-# List available printers
-lpinfo -v
+# Check USB detection
+lsusb | grep -i canon
+# Expected: Bus 001 Device 003: ID 04a9:3302 Canon, Inc. SELPHY CP1500
 
-# Add printer (adjust device URI as needed)
-sudo lpadmin -p Canon_Selphy_CP1500 \
-    -v usb://Canon/SELPHY%20CP1500 \
-    -m everywhere \
-    -o media=na_index-4x6_4x6in
-
-# Set as default
-sudo lpadmin -d Canon_Selphy_CP1500
-
-# Enable printer
-sudo cupsenable Canon_Selphy_CP1500
-sudo cupsaccept Canon_Selphy_CP1500
+# Find printer URI (requires sudo)
+sudo lpinfo -v | grep -i usb
+# Expected: direct usb://Canon/SELPHY%20CP1500?serial=XXXXXXXXXXXX
 ```
 
-### 4. Test Print
+### 4. Add Printer with Gutenprint Driver
+
+```bash
+# Replace YOUR_SERIAL with actual serial from lpinfo output
+sudo lpadmin -p SelphyCP1500 -E \
+    -v "usb://Canon/SELPHY%20CP1500?serial=YOUR_SERIAL" \
+    -m "gutenprint.5.3://canon-cp1300/expert" \
+    -o media=w288h432
+
+# Set as default printer
+sudo lpadmin -d SelphyCP1500
+
+# Verify configuration
+lpstat -p -d
+# Expected:
+# printer SelphyCP1500 is idle. enabled since ...
+# system default destination: SelphyCP1500
+```
+
+### 5. Test Print
 
 ```bash
 # Print test page
-lp -d Canon_Selphy_CP1500 /usr/share/cups/data/testprint
+lp -d SelphyCP1500 /usr/share/cups/data/testprint
+
+# Check print queue
+lpstat -o
+```
+
+### Persistence After Reboot
+
+CUPS printer configuration is stored in `/etc/cups/printers.conf` and **persists across reboots**. No additional setup is needed. To verify after reboot:
+
+```bash
+lpstat -p -d
+```
+
+### Troubleshooting
+
+```bash
+# If printer not detected after reboot
+lsusb | grep -i canon  # Check USB connection
+
+# If printer shows offline
+sudo systemctl restart cups
+cupsenable SelphyCP1500
+
+# View CUPS error log
+tail -f /var/log/cups/error_log
 ```
 
 ---

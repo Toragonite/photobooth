@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Printer
     printer_mock_mode: bool = True  # Use mock printer for development
-    printer_name: str = "Canon_Selphy_CP1500"
+    printer_name: str = "SelphyCP1500"
     print_timeout_seconds: int = 120
     max_retry_count: int = 3
     retry_delays: List[int] = [3, 5, 8]  # Seconds between retries
