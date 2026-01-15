@@ -53,7 +53,7 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 "INCOMPLETE_SESSION", "Need 4 photos to generate composite"
             )
 
-        photo_paths = [p.path for p in sorted(session.photos, key=lambda p: p.index)]
+        photo_paths = [p.file_path for p in sorted(session.photos, key=lambda p: p.index)]
         output_path = f"sessions/{input_data.session_id}/composite.jpg"
 
         options = CompositeOptions(
