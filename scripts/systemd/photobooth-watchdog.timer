@@ -1,0 +1,21 @@
+[Unit]
+Description=PhotoBooth Watchdog Timer - Run health check every 5 minutes
+Documentation=https://github.com/toragonite/photobooth
+
+[Timer]
+# Run 2 minutes after boot
+OnBootSec=2min
+
+# Then every 5 minutes
+OnUnitActiveSec=5min
+
+# Add some randomness to prevent thundering herd
+RandomizedDelaySec=30
+
+# Persist timer across reboots
+Persistent=true
+
+Unit=photobooth-watchdog.service
+
+[Install]
+WantedBy=timers.target

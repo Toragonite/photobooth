@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Configuration
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Colors
@@ -197,9 +197,14 @@ cmd_update() {
         git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || true
     fi
 
-    # Pull latest images
-    echo "Pulling latest Docker images..."
-    docker compose pull
+    # Skip docker pull in offline mode (on-premise deployment)
+    # Images should already be built locally
+    if [[ "${OFFLINE_MODE:-false}" != "true" ]]; then
+        echo "Pulling latest Docker images (skip with OFFLINE_MODE=true)..."
+        docker compose pull 2>/dev/null || echo -e "${YELLOW}Warning: Could not pull images (offline?)${NC}"
+    else
+        echo "Offline mode: Skipping docker pull"
+    fi
 
     # Rebuild and restart
     echo "Rebuilding containers..."

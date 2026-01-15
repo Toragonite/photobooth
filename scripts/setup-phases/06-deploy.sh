@@ -8,7 +8,7 @@ set -euo pipefail
 
 echo "[06-deploy] Starting application deployment..."
 
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 DATA_DIR="${PHOTOBOOTH_DIR}/data"
 SCRIPT_DIR="$(dirname "$0")/.."
 
@@ -67,8 +67,8 @@ MAX_STORAGE_GB=100
 LOG_LEVEL=info
 
 # Printer
-MOCK_PRINTER=false
-PRINTER_NAME=Canon_Selphy_CP1500
+PRINTER_MOCK_MODE=false
+PRINTER_NAME=SelphyCP1500
 
 # Timezone
 TZ=Africa/Kigali
@@ -114,18 +114,25 @@ if [[ ! -f "$PHOTOBOOTH_DIR/certs/server.crt" ]]; then
     chmod 644 "$PHOTOBOOTH_DIR/certs/server.crt"
 fi
 
-# Pull Docker images
-echo "Pulling Docker images (this may take a while)..."
+# Pull Docker images (only if online)
+# For offline/on-premise deployment, images should be pre-built
 cd "$PHOTOBOOTH_DIR"
-sudo -u pi docker compose pull 2>/dev/null || docker compose pull
+if [[ "${OFFLINE_MODE:-false}" != "true" ]]; then
+    echo "Pulling Docker images (this may take a while)..."
+    echo "(Set OFFLINE_MODE=true to skip for on-premise deployment)"
+    sudo -u toragonite docker compose pull 2>/dev/null || docker compose pull 2>/dev/null || \
+        echo "Warning: Could not pull images - will use local build"
+else
+    echo "Offline mode: Skipping docker pull"
+fi
 
-# Build containers if needed
+# Build containers
 echo "Building containers..."
-sudo -u pi docker compose build 2>/dev/null || docker compose build
+sudo -u toragonite docker compose build 2>/dev/null || docker compose build
 
 # Start containers
 echo "Starting containers..."
-sudo -u pi docker compose up -d 2>/dev/null || docker compose up -d
+sudo -u toragonite docker compose up -d 2>/dev/null || docker compose up -d
 
 # Wait for containers to be ready
 echo "Waiting for containers to start..."

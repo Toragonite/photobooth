@@ -1,0 +1,18 @@
+[Unit]
+Description=PhotoBooth Daily Backup Timer - Run backup at 3 AM
+Documentation=https://github.com/toragonite/photobooth
+
+[Timer]
+# Run daily at 3:00 AM local time
+OnCalendar=*-*-* 03:00:00
+
+# Persist timer across reboots (run if missed)
+Persistent=true
+
+# Add randomness to prevent exact timing
+RandomizedDelaySec=300
+
+Unit=photobooth-backup.service
+
+[Install]
+WantedBy=timers.target

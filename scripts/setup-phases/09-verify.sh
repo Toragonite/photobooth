@@ -9,7 +9,7 @@ set -euo pipefail
 echo "[09-verify] Starting final verification..."
 
 PI_IP="${PI_IP:-192.168.4.1}"
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 WIFI_SSID="${WIFI_SSID:-photobooth}"
 
 # Colors

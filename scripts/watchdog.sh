@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Configuration
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 LOG_FILE="${LOG_FILE:-/var/log/photobooth-watchdog.log}"
 HEALTH_URL="http://localhost:8000/api/health"
 MAX_LOG_SIZE=1048576  # 1MB

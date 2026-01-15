@@ -10,7 +10,7 @@ echo "[07-services] Starting systemd services setup..."
 
 SCRIPT_DIR="$(dirname "$0")/.."
 SYSTEMD_DIR="/etc/systemd/system"
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 
 # List of service files
 SERVICE_FILES=(

@@ -1,0 +1,27 @@
+[Unit]
+Description=PhotoBooth Welcome Print - Print test page on first boot
+Documentation=https://github.com/toragonite/photobooth
+After=cups.service photobooth.service
+Requires=cups.service
+# Only run once after cups is ready
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Wait for printer to be fully ready
+ExecStartPre=/bin/sleep 10
+
+# Print the welcome image
+ExecStart=/home/toragonite/Documents/photobooth/scripts/welcome-print.sh
+
+User=toragonite
+Group=toragonite
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photobooth-welcome
+
+[Install]
+WantedBy=multi-user.target

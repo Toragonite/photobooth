@@ -1,0 +1,19 @@
+[Unit]
+Description=PhotoBooth Daily Backup
+Documentation=https://github.com/toragonite/photobooth
+After=photobooth.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/toragonite/Documents/photobooth
+
+# Run backup script
+ExecStart=/home/toragonite/Documents/photobooth/scripts/backup.sh
+
+User=toragonite
+Group=toragonite
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photobooth-backup

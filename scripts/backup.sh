@@ -10,8 +10,8 @@
 set -euo pipefail
 
 # Configuration
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
-BACKUP_DIR="${BACKUP_DIR:-/home/pi/backups}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
+BACKUP_DIR="${BACKUP_DIR:-/home/toragonite/backups}"
 DATA_DIR="${PHOTOBOOTH_DIR}/data"
 MAX_BACKUPS="${MAX_BACKUPS:-7}"
 DATE=$(date +%Y%m%d_%H%M%S)

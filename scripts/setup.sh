@@ -16,7 +16,7 @@ set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 CHECKPOINT_FILE="${PHOTOBOOTH_DIR}/.setup-checkpoint"
 LOG_FILE="/var/log/photobooth-setup.log"
 PHASES_DIR="${SCRIPT_DIR}/setup-phases"

@@ -9,7 +9,7 @@ set -euo pipefail
 echo "[08-security] Starting security hardening..."
 
 PI_IP="${PI_IP:-192.168.4.1}"
-PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/pi/photobooth}"
+PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 
 # Configure UFW firewall
 configure_firewall() {

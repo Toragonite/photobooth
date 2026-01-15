@@ -1,0 +1,20 @@
+[Unit]
+Description=PhotoBooth Watchdog - Health Check
+Documentation=https://github.com/toragonite/photobooth
+After=photobooth.service
+Requires=photobooth.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/toragonite/Documents/photobooth
+
+# Run watchdog script
+ExecStart=/home/toragonite/Documents/photobooth/scripts/watchdog.sh
+
+User=toragonite
+Group=toragonite
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photobooth-watchdog

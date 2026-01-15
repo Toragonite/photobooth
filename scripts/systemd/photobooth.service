@@ -1,0 +1,42 @@
+[Unit]
+Description=PhotoBooth Application (Docker Compose)
+Documentation=https://github.com/toragonite/photobooth
+Requires=docker.service
+After=docker.service network-online.target cups.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# IMPORTANT: Update this path to match your installation
+# Default: /home/toragonite/Documents/photobooth
+# Alternative: /home/pi/photobooth
+WorkingDirectory=/home/toragonite/Documents/photobooth
+
+# Wait for Docker to be fully ready
+ExecStartPre=/bin/sleep 5
+
+# Start containers
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+
+# Stop containers gracefully
+ExecStop=/usr/bin/docker compose down
+
+# Restart policy handled by Docker Compose (restart: unless-stopped)
+# This service just ensures containers start on boot
+
+User=toragonite
+Group=toragonite
+
+# Environment - Update HOME to match user
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="HOME=/home/toragonite"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photobooth
+
+[Install]
+WantedBy=multi-user.target
