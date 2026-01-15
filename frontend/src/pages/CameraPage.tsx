@@ -152,31 +152,31 @@ export function CameraPage() {
 
       {/* Camera preview */}
       <div className="flex-1 relative bg-black rounded-3xl overflow-hidden mb-4">
-        {cameraState === "initializing" ? (
+        {/* Video element - always rendered so ref is available */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${cameraState === "initializing" ? "invisible" : ""}`}
+          style={{ transform: "scaleX(-1)" }} // Mirror for selfie
+        />
+
+        {/* Loading overlay */}
+        {cameraState === "initializing" && (
           <div className="absolute inset-0 flex items-center justify-center">
             <LoadingSpinner color="white" message={t("common.loading")} />
           </div>
-        ) : (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-              style={{ transform: "scaleX(-1)" }} // Mirror for selfie
-            />
+        )}
 
-            {/* Countdown overlay */}
-            {cameraState === "countdown" && countdown > 0 && (
-              <CountdownDisplay count={countdown} size="xl" variant="overlay" />
-            )}
+        {/* Countdown overlay */}
+        {cameraState === "countdown" && countdown > 0 && (
+          <CountdownDisplay count={countdown} size="xl" variant="overlay" />
+        )}
 
-            {/* Flash effect */}
-            {cameraState === "capturing" && (
-              <div className="absolute inset-0 bg-white flash" />
-            )}
-          </>
+        {/* Flash effect */}
+        {cameraState === "capturing" && (
+          <div className="absolute inset-0 bg-white flash" />
         )}
       </div>
 

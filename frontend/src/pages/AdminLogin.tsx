@@ -12,8 +12,11 @@ export function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     if (pin.length < 4) {
       return;
@@ -155,7 +158,8 @@ export function AdminLogin() {
 
         {/* Submit button */}
         <button
-          onClick={handleSubmit}
+          type="button"
+          onClick={() => handleSubmit()}
           disabled={pin.length < 4 || isLoading}
           className="btn-primary w-full"
         >
