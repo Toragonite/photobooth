@@ -1,4 +1,10 @@
 import { useRef, useState, useCallback } from "react";
+import {
+  EnhancementSettings,
+  DEFAULT_ENHANCEMENT,
+  applyEnhancement,
+  hasEnhancement,
+} from "../utils/imageEnhancement";
 
 interface UseCameraOptions {
   facingMode?: "user" | "environment";
@@ -11,6 +17,8 @@ interface UseCameraReturn {
   isReady: boolean;
   error: string | null;
   stream: MediaStream | null;
+  enhancement: EnhancementSettings;
+  setEnhancement: (settings: EnhancementSettings) => void;
   start: () => Promise<void>;
   stop: () => void;
   capture: () => Promise<string | null>;
@@ -24,6 +32,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enhancement, setEnhancement] = useState<EnhancementSettings>(DEFAULT_ENHANCEMENT);
 
   const start = useCallback(async () => {
     try {
@@ -125,15 +134,22 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     // Reset transform
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    // Apply enhancement if any settings are active
+    if (hasEnhancement(enhancement)) {
+      applyEnhancement(ctx, canvas.width, canvas.height, enhancement);
+    }
+
     // Convert to JPEG
     return canvas.toDataURL("image/jpeg", 0.92);
-  }, [isReady]);
+  }, [isReady, enhancement]);
 
   return {
     videoRef,
     isReady,
     error,
     stream,
+    enhancement,
+    setEnhancement,
     start,
     stop,
     capture,

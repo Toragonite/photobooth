@@ -17,6 +17,13 @@
       "title": "Countdown Setting",
       "seconds": "sec"
     },
+    "enhancement": {
+      "none": "Original",
+      "natural": "Natural",
+      "bright": "Bright",
+      "warm": "Warm",
+      "soft": "Soft"
+    },
     "capture": "Capture",
     "retake": "Retake",
     "next": "Next",

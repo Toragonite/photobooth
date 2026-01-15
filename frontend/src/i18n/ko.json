@@ -17,6 +17,13 @@
       "title": "카운트다운 설정",
       "seconds": "초"
     },
+    "enhancement": {
+      "none": "원본",
+      "natural": "자연스럽게",
+      "bright": "밝게",
+      "warm": "따뜻하게",
+      "soft": "소프트"
+    },
     "capture": "촬영",
     "retake": "다시 찍기",
     "next": "다음",

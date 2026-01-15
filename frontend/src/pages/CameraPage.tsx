@@ -10,6 +10,11 @@ import {
   CountdownDisplay,
   PhotoThumbnail,
 } from "../components/common";
+import {
+  ENHANCEMENT_PRESETS,
+  getFilterString,
+  EnhancementSettings,
+} from "../utils/imageEnhancement";
 
 type CameraState =
   | "initializing"
@@ -18,6 +23,16 @@ type CameraState =
   | "capturing"
   | "complete"
   | "error";
+
+// Enhancement preset options for UI
+type PresetKey = keyof typeof ENHANCEMENT_PRESETS;
+const PRESET_OPTIONS: { id: PresetKey; labelKey: string; icon: string }[] = [
+  { id: "none", labelKey: "camera.enhancement.none", icon: "🔲" },
+  { id: "natural", labelKey: "camera.enhancement.natural", icon: "✨" },
+  { id: "bright", labelKey: "camera.enhancement.bright", icon: "☀️" },
+  { id: "warm", labelKey: "camera.enhancement.warm", icon: "🌅" },
+  { id: "soft", labelKey: "camera.enhancement.soft", icon: "🌸" },
+];
 
 export function CameraPage() {
   const navigate = useNavigate();
@@ -30,6 +45,7 @@ export function CameraPage() {
     settings.defaultCountdown,
   );
   const [error, setError] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<PresetKey>("natural");
 
   const {
     count: countdown,
@@ -44,10 +60,21 @@ export function CameraPage() {
     videoRef,
     isReady,
     error: cameraError,
+    enhancement,
+    setEnhancement,
     capture,
     start,
     stop,
   } = useCamera();
+
+  // Apply preset when selected
+  const handlePresetChange = (preset: PresetKey) => {
+    setSelectedPreset(preset);
+    setEnhancement(ENHANCEMENT_PRESETS[preset] as EnhancementSettings);
+  };
+
+  // Get CSS filter for real-time preview
+  const videoFilter = getFilterString(enhancement);
 
   // Initialize camera on mount
   useEffect(() => {
@@ -148,7 +175,10 @@ export function CameraPage() {
           playsInline
           muted
           className={`w-full h-full object-cover ${cameraState === "initializing" ? "invisible" : ""}`}
-          style={{ transform: "scaleX(-1)" }} // Mirror for selfie
+          style={{
+            transform: "scaleX(-1)", // Mirror for selfie
+            filter: videoFilter, // Apply real-time enhancement preview
+          }}
         />
 
         {/* Loading overlay */}
@@ -185,6 +215,26 @@ export function CameraPage() {
 
       {/* Controls */}
       <div className="flex flex-col items-center gap-4">
+        {/* Enhancement presets */}
+        {cameraState === "ready" && photos.length < 4 && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {PRESET_OPTIONS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handlePresetChange(preset.id)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-all ${
+                  selectedPreset === preset.id
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 text-text-muted hover:bg-gray-200"
+                }`}
+              >
+                <span>{preset.icon}</span>
+                <span>{t(preset.labelKey)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Countdown selector */}
         {cameraState === "ready" && photos.length < 4 && (
           <div className="flex gap-2">
