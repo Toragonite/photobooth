@@ -8,6 +8,10 @@ Requires=cups.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+WorkingDirectory=/home/toragonite/Documents/photobooth
+
+# Load environment from .env file
+EnvironmentFile=-/home/toragonite/Documents/photobooth/.env
 
 # Wait for printer to be fully ready
 ExecStartPre=/bin/sleep 10
