@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass
 
+import aiofiles
+
 from app.application.ports.repositories import SessionRepository
-from app.application.ports.services import (CompositeOptions,
-                                            ImageProcessorPort, StoragePort)
+from app.application.ports.services import StoragePort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import SessionId
+from app.infrastructure.services.image_processor import ImageProcessor
 
 
 @dataclass
@@ -30,11 +32,9 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
         self,
         session_repository: SessionRepository,
         storage: StoragePort,
-        image_processor: ImageProcessorPort,
     ):
         self._session_repo = session_repository
         self._storage = storage
-        self._image_processor = image_processor
 
     async def execute(
         self, input_data: GenerateCompositeInput
@@ -53,25 +53,33 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 "INCOMPLETE_SESSION", "Need 4 photos to generate composite"
             )
 
+        # Get photo paths sorted by index
         photo_paths = [p.file_path for p in sorted(session.photos, key=lambda p: p.index)]
-        output_path = f"sessions/{input_data.session_id}/composite.jpg"
 
-        options = CompositeOptions(
-            include_date=input_data.include_date,
-            include_logo=input_data.include_logo,
-        )
+        try:
+            # Read all photos
+            photos_data = []
+            for path in photo_paths:
+                async with aiofiles.open(path, "rb") as f:
+                    photos_data.append(await f.read())
 
-        result = await self._image_processor.generate_composite(
-            photo_paths=photo_paths,
-            output_path=output_path,
-            options=options,
-        )
+            # Create composite using ImageProcessor
+            image_processor = ImageProcessor()
+            composite_data = image_processor.create_composite(
+                photos=photos_data,
+                include_date=input_data.include_date,
+                include_logo=input_data.include_logo,
+            )
 
-        if not result.success:
-            error_msg = result.error_message or "Failed to generate composite"
-            return UseCaseResult.fail("COMPOSITE_FAILED", error_msg)
+            # Save composite using storage service
+            composite_path = await self._storage.save_composite(
+                input_data.session_id, composite_data
+            )
 
-        session.set_composite_path(result.output_path)
-        await self._session_repo.save(session)
+            session.set_composite_path(composite_path)
+            await self._session_repo.save(session)
 
-        return UseCaseResult.ok(CompositeOutput(composite_path=result.output_path))
+            return UseCaseResult.ok(CompositeOutput(composite_path=composite_path))
+
+        except Exception as e:
+            return UseCaseResult.fail("COMPOSITE_FAILED", f"Failed to generate composite: {e}")

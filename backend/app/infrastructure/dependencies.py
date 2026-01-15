@@ -137,13 +137,11 @@ async def get_capture_photo_use_case(
 async def get_generate_composite_use_case(
     session_repo: SessionRepositoryDep,
     storage: StorageServiceDep,
-    image_processor: ImageProcessorDep,
 ) -> GenerateCompositeUseCase:
     """Get GenerateComposite use case."""
     return GenerateCompositeUseCase(
         session_repository=session_repo,
         storage=storage,
-        image_processor=image_processor,
     )
 
 
