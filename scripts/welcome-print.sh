@@ -18,7 +18,11 @@ PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 WELCOME_IMAGE="${PHOTOBOOTH_DIR}/assets/image.jpg"
 PRINTER_NAME="${PRINTER_NAME:-SelphyCP1500}"
 LOCK_FILE="/tmp/photobooth-welcome-printed"
-LOG_FILE="/var/log/photobooth-welcome.log"
+LOG_DIR="${PHOTOBOOTH_DIR}/logs"
+LOG_FILE="${LOG_DIR}/welcome-print.log"
+
+# Create log directory if needed
+mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Logging
 log() {
