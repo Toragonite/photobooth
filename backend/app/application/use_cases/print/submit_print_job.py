@@ -10,7 +10,7 @@ from app.application.ports.repositories import (PrintJobRepository,
 from app.application.ports.services import PrinterPort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import PrintJob
-from app.domain.value_objects import ErrorCode, SessionId, SessionStatus
+from app.domain.value_objects import ErrorCode, JobId, SessionId, SessionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,10 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
         job = PrintJob.create(session_id=sid, copies=input_data.copies)
         await self._print_job_repo.save(job)
 
-        # Start print job in background
+        # Start print job in background with its own database session
+        # Pass only the job_id and composite_path to avoid session conflicts
         asyncio.create_task(
-            self._process_print_job(job, session.composite_path)
+            self._process_print_job_background(str(job.id), session.composite_path, input_data.copies)
         )
 
         return UseCaseResult.ok(
@@ -87,40 +88,68 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             )
         )
 
-    async def _process_print_job(self, job: PrintJob, composite_path: str) -> None:
-        """Process the print job in background."""
+    async def _process_print_job_background(
+        self, job_id: str, composite_path: str, copies: int
+    ) -> None:
+        """Process the print job in background with its own database session."""
+        from app.infrastructure.database import async_session
+        from app.infrastructure.repositories import SQLAlchemyPrintJobRepository
+
         try:
-            # composite_path is already absolute path from storage service
-            file_path = composite_path
-            logger.info(f"Starting print job {job.id} for file: {file_path}")
+            async with async_session() as db:
+                repo = SQLAlchemyPrintJobRepository(db)
 
-            # Start processing
-            job.start_processing()
-            await self._print_job_repo.save(job)
+                # Load job from database
+                job = await repo.get_by_id(JobId(job_id))
+                if not job:
+                    logger.error(f"Print job {job_id} not found in background task")
+                    return
 
-            # Submit to printer
-            result = await self._printer.print_image(file_path, job.copies)
+                file_path = composite_path
+                logger.info(f"Starting print job {job_id} for file: {file_path}")
 
-            if result.success and result.cups_job_id:
-                job.mark_printing(result.cups_job_id)
-                await self._print_job_repo.save(job)
-                logger.info(f"Print job {job.id} submitted to CUPS: {result.cups_job_id}")
+                # Start processing
+                job.start_processing()
+                await repo.save(job)
+                await db.commit()
 
-                # Monitor print job completion
-                await self._monitor_print_job(job, result.cups_job_id)
-            else:
-                error_code = ErrorCode(result.error_code) if result.error_code else ErrorCode.CUPS_REJECTED
-                job.mark_error(error_code, result.error_message or "Print submission failed")
-                await self._print_job_repo.save(job)
-                logger.error(f"Print job {job.id} failed: {result.error_message}")
+                # Submit to printer
+                result = await self._printer.print_image(file_path, copies)
+
+                if result.success and result.cups_job_id:
+                    job.mark_printing(result.cups_job_id)
+                    await repo.save(job)
+                    await db.commit()
+                    logger.info(f"Print job {job_id} submitted to CUPS: {result.cups_job_id}")
+
+                    # Monitor print job completion
+                    await self._monitor_print_job_background(job_id, result.cups_job_id)
+                else:
+                    error_code = ErrorCode(result.error_code) if result.error_code else ErrorCode.CUPS_REJECTED
+                    job.mark_error(error_code, result.error_message or "Print submission failed")
+                    await repo.save(job)
+                    await db.commit()
+                    logger.error(f"Print job {job_id} failed: {result.error_message}")
 
         except Exception as e:
-            logger.exception(f"Error processing print job {job.id}: {e}")
-            job.mark_error(ErrorCode.CUPS_REJECTED, str(e))
-            await self._print_job_repo.save(job)
+            logger.exception(f"Error processing print job {job_id}: {e}")
+            # Try to update job status in a new session
+            try:
+                async with async_session() as db:
+                    repo = SQLAlchemyPrintJobRepository(db)
+                    job = await repo.get_by_id(JobId(job_id))
+                    if job:
+                        job.mark_error(ErrorCode.CUPS_REJECTED, str(e))
+                        await repo.save(job)
+                        await db.commit()
+            except Exception as inner_e:
+                logger.exception(f"Failed to update error status for job {job_id}: {inner_e}")
 
-    async def _monitor_print_job(self, job: PrintJob, cups_job_id: int) -> None:
-        """Monitor CUPS job until completion."""
+    async def _monitor_print_job_background(self, job_id: str, cups_job_id: int) -> None:
+        """Monitor CUPS job until completion with its own database session."""
+        from app.infrastructure.database import async_session
+        from app.infrastructure.repositories import SQLAlchemyPrintJobRepository
+
         max_wait = 120  # 2 minutes max
         poll_interval = 2  # Check every 2 seconds
         elapsed = 0
@@ -130,26 +159,46 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             elapsed += poll_interval
 
             status = await self._printer.get_job_status(cups_job_id)
-            logger.debug(f"Print job {job.id} CUPS status: {status}")
+            logger.debug(f"Print job {job_id} CUPS status: {status}")
 
             if status == "completed":
-                job.mark_completed()
-                await self._print_job_repo.save(job)
-                logger.info(f"Print job {job.id} completed successfully")
+                async with async_session() as db:
+                    repo = SQLAlchemyPrintJobRepository(db)
+                    job = await repo.get_by_id(JobId(job_id))
+                    if job:
+                        job.mark_completed()
+                        await repo.save(job)
+                        await db.commit()
+                logger.info(f"Print job {job_id} completed successfully")
                 return
             elif status in ("cancelled", "failed", "aborted"):
-                job.mark_error(ErrorCode.CUPS_REJECTED, f"CUPS job {status}")
-                await self._print_job_repo.save(job)
-                logger.error(f"Print job {job.id} failed with status: {status}")
+                async with async_session() as db:
+                    repo = SQLAlchemyPrintJobRepository(db)
+                    job = await repo.get_by_id(JobId(job_id))
+                    if job:
+                        job.mark_error(ErrorCode.CUPS_REJECTED, f"CUPS job {status}")
+                        await repo.save(job)
+                        await db.commit()
+                logger.error(f"Print job {job_id} failed with status: {status}")
                 return
             elif status == "unknown":
                 # Job might have completed and been removed from queue
-                job.mark_completed()
-                await self._print_job_repo.save(job)
-                logger.info(f"Print job {job.id} assumed completed (not in queue)")
+                async with async_session() as db:
+                    repo = SQLAlchemyPrintJobRepository(db)
+                    job = await repo.get_by_id(JobId(job_id))
+                    if job:
+                        job.mark_completed()
+                        await repo.save(job)
+                        await db.commit()
+                logger.info(f"Print job {job_id} assumed completed (not in queue)")
                 return
 
         # Timeout
-        logger.warning(f"Print job {job.id} timed out after {max_wait}s")
-        job.mark_error(ErrorCode.CUPS_REJECTED, "Print job timed out")
-        await self._print_job_repo.save(job)
+        logger.warning(f"Print job {job_id} timed out after {max_wait}s")
+        async with async_session() as db:
+            repo = SQLAlchemyPrintJobRepository(db)
+            job = await repo.get_by_id(JobId(job_id))
+            if job:
+                job.mark_error(ErrorCode.CUPS_REJECTED, "Print job timed out")
+                await repo.save(job)
+                await db.commit()
