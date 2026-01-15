@@ -19,8 +19,8 @@ class GetLogsInput:
 class GetLogsUseCase(UseCase[LogsDTO]):
     """Use case for retrieving system logs."""
 
-    def __init__(self, system: SystemServicePort):
-        self._system = system
+    def __init__(self, system_service: SystemServicePort):
+        self._system = system_service
 
     async def execute(self, input_data: GetLogsInput) -> UseCaseResult[LogsDTO]:
         try:

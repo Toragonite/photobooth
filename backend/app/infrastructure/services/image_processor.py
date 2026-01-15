@@ -3,17 +3,13 @@
 import io
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional, Tuple
 
 import aiofiles
 from PIL import Image, ImageDraw, ImageFont
 
 from ...application.ports.services.image_processor_port import (
-    CompositeOptions,
-    CompositeResult,
-    ImageProcessorPort,
-)
+    CompositeOptions, CompositeResult, ImageProcessorPort)
 from ...config import get_settings
 
 settings = get_settings()

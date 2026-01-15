@@ -9,7 +9,8 @@ from sqlalchemy.orm import selectinload
 
 from app.application.ports.repositories import SessionRepository
 from app.domain.entities import Photo, PhotoSession
-from app.domain.value_objects import Language, SessionId, SessionStatus, PhotoId
+from app.domain.value_objects import (Language, PhotoId, SessionId,
+                                      SessionStatus)
 from app.infrastructure.database import PhotoModel, SessionModel
 
 

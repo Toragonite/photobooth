@@ -9,8 +9,8 @@ from app.domain.value_objects import SessionId
 class GetSessionUseCase(UseCase[SessionDTO]):
     """Use case for retrieving a photo session."""
 
-    def __init__(self, session_repo: SessionRepository):
-        self._session_repo = session_repo
+    def __init__(self, session_repository: SessionRepository):
+        self._session_repo = session_repository
 
     async def execute(self, session_id: str) -> UseCaseResult[SessionDTO]:
         try:

@@ -9,17 +9,12 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports.repositories import PrintJobRepository, SessionRepository
-from app.application.ports.services import (
-    ImageProcessorPort,
-    PrinterPort,
-    StoragePort,
-    SystemServicePort,
-)
-from app.infrastructure.repositories import (
-    SQLAlchemyPrintJobRepository,
-    SQLAlchemySessionRepository,
-)
+from app.application.ports.repositories import (PrintJobRepository,
+                                                SessionRepository)
+from app.application.ports.services import (ImageProcessorPort, PrinterPort,
+                                            StoragePort, SystemServicePort)
+from app.infrastructure.repositories import (SQLAlchemyPrintJobRepository,
+                                             SQLAlchemySessionRepository)
 from app.infrastructure.services.image_processor import ImageProcessor
 from app.infrastructure.services.printer_service import PrinterService
 from app.infrastructure.services.storage_service import StorageService

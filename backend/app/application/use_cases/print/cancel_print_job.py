@@ -9,8 +9,12 @@ from app.domain.value_objects import JobId, PrintStatus
 class CancelPrintJobUseCase(UseCase[bool]):
     """Use case for cancelling a print job."""
 
-    def __init__(self, print_job_repo: PrintJobRepository, printer: PrinterPort):
-        self._print_job_repo = print_job_repo
+    def __init__(
+        self,
+        print_job_repository: PrintJobRepository,
+        printer: PrinterPort,
+    ):
+        self._print_job_repo = print_job_repository
         self._printer = printer
 
     async def execute(self, job_id: str) -> UseCaseResult[bool]:

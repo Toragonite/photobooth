@@ -3,7 +3,9 @@
 from dataclasses import dataclass
 
 from app.application.dto.print_job_dto import PrintJobDTO
-from app.application.ports.repositories import PrintJobRepository, SessionRepository
+from app.application.ports.repositories import (PrintJobRepository,
+                                                SessionRepository)
+from app.application.ports.services import PrinterPort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import PrintJob
 from app.domain.value_objects import SessionId, SessionStatus
@@ -21,13 +23,17 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
 
     def __init__(
         self,
-        session_repo: SessionRepository,
-        print_job_repo: PrintJobRepository,
+        session_repository: SessionRepository,
+        print_job_repository: PrintJobRepository,
+        printer: PrinterPort,
     ):
-        self._session_repo = session_repo
-        self._print_job_repo = print_job_repo
+        self._session_repo = session_repository
+        self._print_job_repo = print_job_repository
+        self._printer = printer
 
-    async def execute(self, input_data: SubmitPrintJobInput) -> UseCaseResult[PrintJobDTO]:
+    async def execute(
+        self, input_data: SubmitPrintJobInput
+    ) -> UseCaseResult[PrintJobDTO]:
         try:
             sid = SessionId(input_data.session_id)
         except ValueError:
@@ -46,7 +52,13 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             return UseCaseResult.fail("NO_COMPOSITE", "Generate composite first")
 
         if input_data.copies < 1 or input_data.copies > 10:
-            return UseCaseResult.fail("INVALID_COPIES", "Copies must be between 1 and 10")
+            return UseCaseResult.fail(
+                "INVALID_COPIES", "Copies must be between 1 and 10"
+            )
+
+        # Check printer availability
+        if not await self._printer.is_ready():
+            return UseCaseResult.fail("PRINTER_OFFLINE", "Printer is not available")
 
         job = PrintJob.create(session_id=sid, copies=input_data.copies)
         await self._print_job_repo.save(job)

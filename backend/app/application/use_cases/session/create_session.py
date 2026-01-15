@@ -18,10 +18,12 @@ class CreateSessionInput:
 class CreateSessionUseCase(UseCase[CreateSessionResponse]):
     """Use case for creating a new photo session."""
 
-    def __init__(self, session_repo: SessionRepository):
-        self._session_repo = session_repo
+    def __init__(self, session_repository: SessionRepository):
+        self._session_repo = session_repository
 
-    async def execute(self, input_data: CreateSessionInput) -> UseCaseResult[CreateSessionResponse]:
+    async def execute(
+        self, input_data: CreateSessionInput
+    ) -> UseCaseResult[CreateSessionResponse]:
         try:
             language = Language(input_data.language)
         except ValueError:

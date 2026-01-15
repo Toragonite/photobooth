@@ -20,8 +20,8 @@ class GetPrintHistoryInput:
 class GetPrintHistoryUseCase(UseCase[PrintHistoryDTO]):
     """Use case for retrieving print history."""
 
-    def __init__(self, print_job_repo: PrintJobRepository):
-        self._print_job_repo = print_job_repo
+    def __init__(self, print_job_repository: PrintJobRepository):
+        self._print_job_repo = print_job_repository
 
     async def execute(self, input_data: GetPrintHistoryInput) -> UseCaseResult[PrintHistoryDTO]:
         try:

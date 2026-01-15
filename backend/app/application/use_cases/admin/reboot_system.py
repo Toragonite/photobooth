@@ -26,11 +26,11 @@ class RebootSystemUseCase(UseCase[RebootSystemOutput]):
 
     def __init__(
         self,
-        print_job_repo: PrintJobRepository,
-        system: SystemServicePort,
+        system_service: SystemServicePort,
+        print_job_repository: PrintJobRepository,
     ):
-        self._print_job_repo = print_job_repo
-        self._system = system
+        self._system = system_service
+        self._print_job_repo = print_job_repository
 
     async def execute(self, input_data: RebootSystemInput) -> UseCaseResult[RebootSystemOutput]:
         try:

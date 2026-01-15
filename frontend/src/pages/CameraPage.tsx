@@ -35,7 +35,7 @@ export function CameraPage() {
     count: countdown,
     isRunning: isCountdownRunning,
     start: startCountdownTimer,
-    reset: resetCountdown,
+    reset: _resetCountdown,
   } = useCountdown(selectedCountdown, {
     onComplete: () => handleCapture(),
   });

@@ -9,38 +9,29 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports.repositories import PrintJobRepository, SessionRepository
-from app.application.ports.services import (
-    ImageProcessorPort,
-    PrinterPort,
-    StoragePort,
-    SystemServicePort,
-)
-from app.application.use_cases.admin import (
-    AuthenticateUseCase,
-    GetLogsUseCase,
-    GetPrintHistoryUseCase,
-    GetSystemStatusUseCase,
-    RebootSystemUseCase,
-    TestPrintUseCase,
-)
-from app.application.use_cases.print import (
-    CancelPrintJobUseCase,
-    GetPrintStatusUseCase,
-    RetryPrintJobUseCase,
-    SubmitPrintJobUseCase,
-)
-from app.application.use_cases.session import (
-    AbandonSessionUseCase,
-    CapturePhotoUseCase,
-    CreateSessionUseCase,
-    GenerateCompositeUseCase,
-    GetSessionUseCase,
-)
-from app.application.use_cases.system import CleanupStorageUseCase, HealthCheckUseCase
+from app.application.ports.repositories import (PrintJobRepository,
+                                                SessionRepository)
+from app.application.ports.services import (ImageProcessorPort, PrinterPort,
+                                            StoragePort, SystemServicePort)
+from app.application.use_cases.admin import (AuthenticateUseCase,
+                                             GetLogsUseCase,
+                                             GetPrintHistoryUseCase,
+                                             GetSystemStatusUseCase,
+                                             RebootSystemUseCase,
+                                             TestPrintUseCase)
+from app.application.use_cases.print import (CancelPrintJobUseCase,
+                                             GetPrintStatusUseCase,
+                                             RetryPrintJobUseCase,
+                                             SubmitPrintJobUseCase)
+from app.application.use_cases.session import (AbandonSessionUseCase,
+                                               CapturePhotoUseCase,
+                                               CreateSessionUseCase,
+                                               GenerateCompositeUseCase,
+                                               GetSessionUseCase)
+from app.application.use_cases.system import (CleanupStorageUseCase,
+                                              HealthCheckUseCase)
 from app.infrastructure.container import Container, create_request_container
 from app.infrastructure.database import get_db
-
 
 # ─────────────────────────────────────────────────────────────────
 # Container dependency
@@ -170,7 +161,9 @@ async def get_abandon_session_use_case(
 CreateSessionUseCaseDep = Annotated[CreateSessionUseCase, Depends(get_create_session_use_case)]
 GetSessionUseCaseDep = Annotated[GetSessionUseCase, Depends(get_get_session_use_case)]
 CapturePhotoUseCaseDep = Annotated[CapturePhotoUseCase, Depends(get_capture_photo_use_case)]
-GenerateCompositeUseCaseDep = Annotated[GenerateCompositeUseCase, Depends(get_generate_composite_use_case)]
+GenerateCompositeUseCaseDep = Annotated[
+    GenerateCompositeUseCase, Depends(get_generate_composite_use_case)
+]
 AbandonSessionUseCaseDep = Annotated[AbandonSessionUseCase, Depends(get_abandon_session_use_case)]
 
 
@@ -238,7 +231,16 @@ CancelPrintJobUseCaseDep = Annotated[CancelPrintJobUseCase, Depends(get_cancel_p
 
 async def get_authenticate_use_case() -> AuthenticateUseCase:
     """Get Authenticate use case."""
-    return AuthenticateUseCase()
+    import hashlib
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    pin_hash = hashlib.sha256(settings.admin_pin.encode()).hexdigest()
+    return AuthenticateUseCase(
+        admin_pin_hash=pin_hash,
+        token_expiry_hours=max(1, settings.token_expire_minutes // 60),
+    )
 
 
 async def get_system_status_use_case(
@@ -306,14 +308,10 @@ RebootSystemUseCaseDep = Annotated[RebootSystemUseCase, Depends(get_reboot_syste
 
 
 async def get_cleanup_storage_use_case(
-    session_repo: SessionRepositoryDep,
     storage: StorageServiceDep,
 ) -> CleanupStorageUseCase:
     """Get CleanupStorage use case."""
-    return CleanupStorageUseCase(
-        session_repository=session_repo,
-        storage=storage,
-    )
+    return CleanupStorageUseCase(storage=storage)
 
 
 async def get_health_check_use_case(

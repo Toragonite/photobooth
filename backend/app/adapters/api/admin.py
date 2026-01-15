@@ -12,16 +12,24 @@ from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...config import get_settings
-from ...infrastructure.database import (AdminSessionModel, JobEventModel,
-                                        LoginAttemptModel, PrintJobModel,
-                                        SessionModel, SettingsModel, get_db)
-from ...infrastructure.services import (CleanupService, ExportType, LogLevel,
-                                        LogSource, LogViewerService,
-                                        PhotoExportService, PrinterService,
-                                        ServiceName, StorageService,
-                                        SystemService, TestPatternGenerator,
-                                        TestPatternType)
+from app.adapters.api.response_utils import handle_result
+from app.application.use_cases.admin import (GetLogsInput,
+                                             GetPrintHistoryInput,
+                                             RebootSystemInput, TestPrintInput)
+from app.config import get_settings
+from app.infrastructure.database import (AdminSessionModel, JobEventModel,
+                                         LoginAttemptModel, PrintJobModel,
+                                         SessionModel, SettingsModel, get_db)
+from app.infrastructure.dependencies import (GetLogsUseCaseDep,
+                                             GetPrintHistoryUseCaseDep,
+                                             GetSystemStatusUseCaseDep,
+                                             RebootSystemUseCaseDep,
+                                             TestPrintUseCaseDep)
+from app.infrastructure.services import (CleanupService, ExportType, LogLevel,
+                                         LogSource, LogViewerService,
+                                         PhotoExportService, ServiceName,
+                                         StorageService, SystemService,
+                                         TestPatternType)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,6 +56,27 @@ class AdminResponse(BaseModel):
 
     success: bool
     data: dict
+
+
+class TestPrintRequest(BaseModel):
+    """Request to send test print."""
+
+    pattern: Optional[str] = None
+    pattern_type: Optional[str] = None  # Alias for backward compat
+
+
+class RebootSystemRequest(BaseModel):
+    """Request to reboot system."""
+
+    delay: int = 10
+    force: bool = False
+
+
+class CleanupRequest(BaseModel):
+    """Request to execute cleanup."""
+
+    older_than_days: int = 30
+    dry_run: bool = False  # Reserved for future use
 
 
 # Auth dependency
@@ -171,129 +200,30 @@ async def admin_logout(
 
 @router.get("/status", response_model=AdminResponse)
 async def get_system_status(
+    use_case: GetSystemStatusUseCaseDep,
     admin: dict = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """Get full system status."""
-    # Printer status
-    printer_service = PrinterService()
-    printer_info = printer_service.get_printer_status()
-
-    printer_data = {
-        "name": printer_info.name if printer_info else "Unknown",
-        "model": printer_info.model if printer_info else "Unknown",
-        "status": printer_info.state.value if printer_info else "offline",
-        "health": "healthy" if printer_info else "unhealthy",
-        "mock_mode": printer_service.mock_mode,
-    }
-
-    # Storage status
-    storage_service = StorageService()
-    storage_stats = storage_service.get_storage_stats()
-
-    storage_data = {
-        "total_bytes": storage_stats["total_bytes"],
-        "used_bytes": storage_stats["used_bytes"],
-        "free_bytes": storage_stats["free_bytes"],
-        "percent_used": storage_stats["percent_used"],
-        "health": "healthy" if storage_stats["percent_used"] < 90 else "warning",
-    }
-
-    # Today's activity
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Session counts
-    result = await db.execute(
-        select(func.count(SessionModel.id)).where(
-            SessionModel.created_at >= today_start
-        )
-    )
-    sessions_today = result.scalar() or 0
-
-    # Print job counts
-    result = await db.execute(
-        select(PrintJobModel.status, func.count(PrintJobModel.id))
-        .where(PrintJobModel.created_at >= today_start)
-        .group_by(PrintJobModel.status)
-    )
-    job_counts = dict(result.all())
-
-    activity = {
-        "date": today_start.date().isoformat(),
-        "sessions_started": sessions_today,
-        "prints_total": sum(job_counts.values()),
-        "prints_completed": job_counts.get("completed", 0),
-        "prints_failed": job_counts.get("failed", 0),
-        "prints_cancelled": job_counts.get("cancelled", 0),
-    }
-
-    return AdminResponse(
-        success=True,
-        data={
-            "timestamp": datetime.now().isoformat(),
-            "overall_health": "healthy",
-            "printer": printer_data,
-            "storage": storage_data,
-            "activity": activity,
-        },
-    )
+    result = await use_case.execute()
+    return handle_result(result)
 
 
 @router.get("/print-history", response_model=AdminResponse)
 async def get_print_history(
+    use_case: GetPrintHistoryUseCaseDep,
     page: int = 1,
     limit: int = 20,
     status: Optional[str] = None,
     admin: dict = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """Get paginated print history."""
-    limit = min(limit, 100)
-    offset = (page - 1) * limit
-
-    # Build query
-    query = select(PrintJobModel).order_by(PrintJobModel.created_at.desc())
-
-    if status and status != "all":
-        query = query.where(PrintJobModel.status == status)
-
-    # Get total count
-    count_query = select(func.count(PrintJobModel.id))
-    if status and status != "all":
-        count_query = count_query.where(PrintJobModel.status == status)
-
-    result = await db.execute(count_query)
-    total = result.scalar() or 0
-
-    # Get jobs
-    result = await db.execute(query.offset(offset).limit(limit))
-    jobs = result.scalars().all()
-
-    jobs_data = [
-        {
-            "id": job.id,
-            "session_id": job.session_id,
-            "status": job.status,
-            "copies": job.copies,
-            "created_at": job.created_at.isoformat(),
-            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-            "error_code": job.error_code,
-        }
-        for job in jobs
-    ]
-
-    return AdminResponse(
-        success=True,
-        data={
-            "jobs": jobs_data,
-            "pagination": {
-                "page": page,
-                "limit": limit,
-                "total": total,
-                "total_pages": (total + limit - 1) // limit,
-            },
-        },
+    input_data = GetPrintHistoryInput(
+        page=page,
+        per_page=min(limit, 100),
+        status_filter=status if status != "all" else None,
     )
+    result = await use_case.execute(input_data)
+    return handle_result(result)
 
 
 @router.get("/print-history/{job_id}", response_model=AdminResponse)
@@ -450,55 +380,23 @@ async def get_storage_details(
 
 @router.post("/test-print", response_model=AdminResponse)
 async def test_print(
-    pattern_type: str = "full",
+    use_case: TestPrintUseCaseDep,
+    request: Optional[TestPrintRequest] = None,
     admin: dict = Depends(get_admin_user),
 ):
     """Send test print with specified pattern.
 
     Args:
-        pattern_type: Type of test pattern (color_bars, alignment, gradient, full)
+        request: JSON body with pattern or pattern_type field
     """
-    printer_service = PrinterService()
-    test_generator = TestPatternGenerator()
+    # Handle request body - prefer 'pattern' over 'pattern_type'
+    pattern = "full"
+    if request:
+        pattern = request.pattern or request.pattern_type or "full"
 
-    if not printer_service.is_available():
-        raise HTTPException(status_code=503, detail="Printer is offline")
-
-    # Validate and convert pattern type
-    try:
-        pattern = TestPatternType(pattern_type)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid pattern type. Must be one of: {[p.value for p in TestPatternType]}",
-        )
-
-    # Generate test pattern
-    logger.info(f"Test print requested with pattern: {pattern_type}")
-    test_image_path = test_generator.generate(pattern)
-
-    if not test_image_path:
-        raise HTTPException(status_code=500, detail="Failed to generate test pattern")
-
-    # Submit to printer
-    result = await printer_service.print_file(test_image_path, copies=1)
-
-    if not result.success:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Print failed: {result.error_message or result.error_code}",
-        )
-
-    return AdminResponse(
-        success=True,
-        data={
-            "message": "Test print submitted",
-            "pattern_type": pattern_type,
-            "job_id": result.job_id,
-            "image_path": test_image_path,
-            "mock_mode": printer_service.mock_mode,
-        },
-    )
+    input_data = TestPrintInput(pattern_type=pattern)
+    result = await use_case.execute(input_data)
+    return handle_result(result)
 
 
 @router.get("/test-print/patterns", response_model=AdminResponse)
@@ -537,11 +435,11 @@ async def get_test_patterns(
 
 @router.get("/logs", response_model=AdminResponse)
 async def get_logs(
+    use_case: GetLogsUseCaseDep,
     source: str = "app",
     level: str = "all",
-    lines: int = 100,
-    search: Optional[str] = None,
-    offset: int = 0,
+    limit: Optional[int] = None,
+    lines: Optional[int] = None,
     admin: dict = Depends(get_admin_user),
 ):
     """Get system logs.
@@ -549,58 +447,19 @@ async def get_logs(
     Args:
         source: Log source (app, print, cups, system)
         level: Minimum log level (debug, info, warning, error, critical, all)
-        lines: Number of lines to return
-        search: Optional search term
-        offset: Offset for pagination
+        limit: Number of lines to return (primary param)
+        lines: Number of lines to return (alias for backward compat)
     """
-    log_viewer = LogViewerService()
+    # Use limit as primary, fall back to lines, then default to 100
+    line_count = limit if limit is not None else (lines if lines is not None else 100)
 
-    # Validate source
-    try:
-        log_source = LogSource(source)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid log source. Must be one of: {[s.value for s in LogSource]}",
-        )
-
-    # Validate level
-    try:
-        log_level = LogLevel(level)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid log level. Must be one of: {[lvl.value for lvl in LogLevel]}",
-        )
-
-    result = log_viewer.get_logs(
-        source=log_source,
-        level=log_level,
-        lines=min(lines, 1000),
-        search=search,
-        offset=offset,
+    input_data = GetLogsInput(
+        source=source,
+        limit=min(line_count, 1000),
+        level=level if level != "all" else None,
     )
-
-    return AdminResponse(
-        success=True,
-        data={
-            "logs": [
-                {
-                    "timestamp": (
-                        entry.timestamp.isoformat() if entry.timestamp else None
-                    ),
-                    "level": entry.level,
-                    "source": entry.source,
-                    "message": entry.message,
-                }
-                for entry in result.entries
-            ],
-            "total_count": result.total_count,
-            "has_more": result.has_more,
-            "source": result.source,
-            "level_filter": result.level_filter,
-        },
-    )
+    result = await use_case.execute(input_data)
+    return handle_result(result)
 
 
 @router.get("/logs/sources", response_model=AdminResponse)
@@ -690,46 +549,21 @@ async def download_logs(
 
 @router.post("/system/reboot", response_model=AdminResponse)
 async def reboot_system(
-    delay: int = 10,
-    force: bool = False,
+    use_case: RebootSystemUseCaseDep,
+    request: Optional[RebootSystemRequest] = None,
     admin: dict = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """Schedule system reboot.
 
     Args:
-        delay: Seconds before reboot (default 10)
-        force: Force reboot even with active jobs
+        request: JSON body with delay and force fields
     """
-    system_service = SystemService()
+    delay = request.delay if request else 10
+    force = request.force if request else False
 
-    # Check for active print jobs unless force is specified
-    if not force:
-        result = await db.execute(
-            select(func.count(PrintJobModel.id)).where(
-                PrintJobModel.status.in_(["pending", "processing", "printing"])
-            )
-        )
-        active_jobs = result.scalar() or 0
-
-        if active_jobs > 0:
-            return AdminResponse(
-                success=False,
-                data={
-                    "error": "ACTIVE_JOBS",
-                    "message": f"Cannot reboot with {active_jobs} active print job(s). Use force=true to override.",
-                    "active_jobs": active_jobs,
-                },
-            )
-
-    logger.warning(f"System reboot requested with delay={delay}s, force={force}")
-
-    result = await system_service.schedule_reboot(delay_seconds=delay, force=force)
-
-    return AdminResponse(
-        success=result["success"],
-        data=result,
-    )
+    input_data = RebootSystemInput(delay_seconds=delay, force=force)
+    result = await use_case.execute(input_data)
+    return handle_result(result)
 
 
 @router.post("/system/reboot/cancel", response_model=AdminResponse)
@@ -857,18 +691,29 @@ async def restart_service(
 # Cleanup endpoints
 @router.get("/cleanup/preview", response_model=AdminResponse)
 async def preview_cleanup(
-    days: int = 30,
+    older_than_days: Optional[int] = None,
+    days: Optional[int] = None,
     admin: dict = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Preview cleanup without deleting.
 
     Shows how many sessions and files would be cleaned.
+
+    Args:
+        older_than_days: Retention period in days (primary param)
+        days: Retention period in days (alias for backward compat)
     """
+    # Use older_than_days as primary, fall back to days, then default to 30
+    retention_days = (
+        older_than_days if older_than_days is not None
+        else (days if days is not None else 30)
+    )
+
     cleanup_service = CleanupService()
 
     try:
-        preview = await cleanup_service.preview_cleanup(db, retention_days=days)
+        preview = await cleanup_service.preview_cleanup(db, retention_days=retention_days)
 
         return AdminResponse(
             success=True,
@@ -878,7 +723,7 @@ async def preview_cleanup(
                 "total_size_bytes": preview.total_size_bytes,
                 "total_size_mb": round(preview.total_size_bytes / (1024 * 1024), 2),
                 "estimated_new_usage_percent": preview.estimated_new_usage_percent,
-                "retention_days": days,
+                "retention_days": retention_days,
             },
         )
     except Exception as e:
@@ -888,7 +733,7 @@ async def preview_cleanup(
 
 @router.post("/cleanup", response_model=AdminResponse)
 async def execute_cleanup(
-    days: int = 30,
+    request: Optional[CleanupRequest] = None,
     admin: dict = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -896,13 +741,18 @@ async def execute_cleanup(
 
     Deletes files for sessions older than retention period.
     Session metadata is preserved for statistics.
+
+    Args:
+        request: JSON body with older_than_days and dry_run fields
     """
+    retention_days = request.older_than_days if request else 30
+
     cleanup_service = CleanupService()
 
-    logger.info(f"Cleanup requested by admin with {days} days retention")
+    logger.info(f"Cleanup requested by admin with {retention_days} days retention")
 
     try:
-        result = await cleanup_service.execute_cleanup(db, retention_days=days)
+        result = await cleanup_service.execute_cleanup(db, retention_days=retention_days)
 
         return AdminResponse(
             success=result.success,

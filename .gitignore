@@ -4,6 +4,7 @@
 # .claude/state/context.json
 
 # Python
+.venv/
 venv/
 __pycache__/
 *.pyc

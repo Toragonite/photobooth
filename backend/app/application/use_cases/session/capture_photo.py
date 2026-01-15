@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from app.application.dto.session_dto import PhotoDTO
 from app.application.ports.repositories import SessionRepository
-from app.application.ports.services import StoragePort
+from app.application.ports.services import ImageProcessorPort, StoragePort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import Photo
 from app.domain.value_objects import SessionId
@@ -21,9 +21,15 @@ class CapturePhotoInput:
 class CapturePhotoUseCase(UseCase[PhotoDTO]):
     """Use case for capturing and saving a photo."""
 
-    def __init__(self, session_repo: SessionRepository, storage: StoragePort):
-        self._session_repo = session_repo
+    def __init__(
+        self,
+        session_repository: SessionRepository,
+        storage: StoragePort,
+        image_processor: ImageProcessorPort,
+    ):
+        self._session_repo = session_repository
         self._storage = storage
+        self._image_processor = image_processor
 
     async def execute(self, input_data: CapturePhotoInput) -> UseCaseResult[PhotoDTO]:
         try:

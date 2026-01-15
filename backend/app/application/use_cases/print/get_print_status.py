@@ -2,6 +2,7 @@
 
 from app.application.dto.print_job_dto import PrintJobStatusResponse
 from app.application.ports.repositories import PrintJobRepository
+from app.application.ports.services import PrinterPort
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import JobId
 
@@ -9,8 +10,13 @@ from app.domain.value_objects import JobId
 class GetPrintStatusUseCase(UseCase[PrintJobStatusResponse]):
     """Use case for retrieving print job status."""
 
-    def __init__(self, print_job_repo: PrintJobRepository):
-        self._print_job_repo = print_job_repo
+    def __init__(
+        self,
+        print_job_repository: PrintJobRepository,
+        printer: PrinterPort,
+    ):
+        self._print_job_repo = print_job_repository
+        self._printer = printer
 
     async def execute(self, job_id: str) -> UseCaseResult[PrintJobStatusResponse]:
         try:

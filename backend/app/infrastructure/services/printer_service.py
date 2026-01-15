@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
-from ...application.ports.services.printer_port import (
-    PrinterPort,
-    PrinterStatus as PortPrinterStatus,
-    PrintResult as PortPrintResult,
-)
+from ...application.ports.services.printer_port import PrinterPort
+from ...application.ports.services.printer_port import \
+    PrinterStatus as PortPrinterStatus
+from ...application.ports.services.printer_port import \
+    PrintResult as PortPrintResult
 from ...config import get_settings
 from ...domain.value_objects import ErrorCode
 

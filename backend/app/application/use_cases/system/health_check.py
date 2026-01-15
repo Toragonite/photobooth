@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 
-from app.application.ports.services import PrinterPort, StoragePort, SystemServicePort
+from app.application.ports.services import (PrinterPort, StoragePort,
+                                            SystemServicePort)
 from app.application.use_cases.base import UseCase, UseCaseResult
 
 
@@ -19,13 +20,13 @@ class HealthCheckUseCase(UseCase[HealthCheckOutput]):
 
     def __init__(
         self,
-        printer: PrinterPort,
+        system_service: SystemServicePort,
         storage: StoragePort,
-        system: SystemServicePort,
+        printer: PrinterPort,
     ):
-        self._printer = printer
+        self._system = system_service
         self._storage = storage
-        self._system = system
+        self._printer = printer
 
     async def execute(self) -> UseCaseResult[HealthCheckOutput]:
         try:
@@ -69,7 +70,12 @@ class HealthCheckUseCase(UseCase[HealthCheckOutput]):
 
             # Determine overall health
             healthy = len(issues) == 0
-            status = "healthy" if healthy else ("degraded" if len(issues) < 2 else "critical")
+            if healthy:
+                status = "healthy"
+            elif len(issues) < 2:
+                status = "degraded"
+            else:
+                status = "critical"
 
             return UseCaseResult.ok(
                 HealthCheckOutput(

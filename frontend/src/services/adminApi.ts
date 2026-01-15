@@ -292,12 +292,16 @@ class AdminApiClient {
   }
 
   // System control
-  async reboot(
-    force: boolean = false,
-  ): Promise<ApiResponse<{ message: string; scheduled_at: string }>> {
+  async reboot(options?: {
+    delay?: number;
+    force?: boolean;
+  }): Promise<ApiResponse<{ message: string; scheduled_at: string }>> {
     return this.request("/system/reboot", {
       method: "POST",
-      body: JSON.stringify({ force }),
+      body: JSON.stringify({
+        delay: options?.delay,
+        force: options?.force ?? false,
+      }),
     });
   }
 
@@ -332,11 +336,11 @@ class AdminApiClient {
   }
 
   async sendTestPrint(
-    pattern: string = "color_bars",
+    patternType: string = "color_bars",
   ): Promise<ApiResponse<{ job_id: string; message: string }>> {
     return this.request("/test-print", {
       method: "POST",
-      body: JSON.stringify({ pattern }),
+      body: JSON.stringify({ pattern_type: patternType }),
     });
   }
 

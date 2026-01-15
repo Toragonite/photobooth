@@ -233,7 +233,8 @@ class PhotoExportService:
                     )
                     photos = result.scalars().all()
 
-                    session_dir = f"session_{session.id[:8]}_{session.created_at.strftime('%Y%m%d')}"
+                    date_str = session.created_at.strftime("%Y%m%d")
+                    session_dir = f"session_{session.id[:8]}_{date_str}"
 
                     # Add photos
                     for photo in photos:
@@ -263,7 +264,8 @@ class PhotoExportService:
                 index_content += f"Total Files: {total_files}\n\n"
 
                 for session in sessions:
-                    index_content += f"- {session.id[:8]}: {session.created_at.strftime('%Y-%m-%d %H:%M')} ({session.status})\n"
+                    ts = session.created_at.strftime("%Y-%m-%d %H:%M")
+                    index_content += f"- {session.id[:8]}: {ts} ({session.status})\n"
 
                 zf.writestr("index.txt", index_content)
 

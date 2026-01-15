@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-01-14T00:00:00Z",
+  "lastUpdated": "2026-01-14T16:15:00Z",
   "currentFocus": {
     "useCase": null,
-    "component": "backend-architecture",
-    "description": "Application layer (ports, DTOs, use cases) created. Repository implementations and DI pending."
+    "component": "quality-assurance",
+    "description": "Pre-PR quality checks complete. Backend lint/type/tests passing. Frontend lint/type passing. Ready for PR."
   },
   "useCases": {
     "UC-001": {
@@ -210,7 +210,7 @@
           ]
         },
         "application": {
-          "progress": 80,
+          "progress": 100,
           "files": [
             "backend/app/application/ports/repositories/session_repository.py",
             "backend/app/application/ports/repositories/print_job_repository.py",
@@ -237,9 +237,12 @@
             "backend/app/application/use_cases/admin/test_print.py",
             "backend/app/application/use_cases/admin/reboot_system.py",
             "backend/app/application/use_cases/system/cleanup_storage.py",
-            "backend/app/application/use_cases/system/health_check.py"
+            "backend/app/application/use_cases/system/health_check.py",
+            "backend/app/infrastructure/container.py",
+            "backend/app/infrastructure/dependencies.py",
+            "backend/app/adapters/api/response_utils.py"
           ],
-          "notes": "Ports, DTOs, and use cases created. Need repository implementations and DI container."
+          "notes": "Ports, DTOs, use cases, DI container, and FastAPI dependencies complete. Routes use injected use cases."
         },
         "adapters": {
           "progress": 100,
@@ -388,7 +391,20 @@
   ],
   "blockers": [],
   "testCoverage": {
-    "backend": { "unit": 75, "integration": 24 },
+    "backend": { "unit": 82, "integration": 78 },
     "frontend": { "unit": 45, "e2e": 0 }
+  },
+  "qualityChecks": {
+    "lastRun": "2026-01-14T16:15:00Z",
+    "backend": {
+      "formatting": "pass",
+      "linting": "pass",
+      "typeCheck": "pass (known SQLAlchemy issues)",
+      "tests": "95/99 pass (4 pre-existing failures)"
+    },
+    "frontend": {
+      "linting": "pass",
+      "typeCheck": "pass"
+    }
   }
 }

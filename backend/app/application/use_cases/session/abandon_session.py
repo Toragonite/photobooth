@@ -9,8 +9,8 @@ from app.domain.value_objects import SessionId
 class AbandonSessionUseCase(UseCase[bool]):
     """Use case for abandoning a photo session."""
 
-    def __init__(self, session_repo: SessionRepository, storage: StoragePort):
-        self._session_repo = session_repo
+    def __init__(self, session_repository: SessionRepository, storage: StoragePort):
+        self._session_repo = session_repository
         self._storage = storage
 
     async def execute(self, session_id: str) -> UseCaseResult[bool]:

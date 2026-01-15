@@ -1,10 +1,9 @@
 """Get system status use case."""
 
-from datetime import datetime
-
 from app.application.dto.admin_dto import SystemStatusDTO
 from app.application.ports.repositories import PrintJobRepository
-from app.application.ports.services import PrinterPort, StoragePort, SystemServicePort
+from app.application.ports.services import (PrinterPort, StoragePort,
+                                            SystemServicePort)
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import PrintStatus
 
@@ -14,15 +13,15 @@ class GetSystemStatusUseCase(UseCase[SystemStatusDTO]):
 
     def __init__(
         self,
-        print_job_repo: PrintJobRepository,
-        printer: PrinterPort,
+        system_service: SystemServicePort,
         storage: StoragePort,
-        system: SystemServicePort,
+        printer: PrinterPort,
+        print_job_repository: PrintJobRepository,
     ):
-        self._print_job_repo = print_job_repo
-        self._printer = printer
+        self._system = system_service
         self._storage = storage
-        self._system = system
+        self._printer = printer
+        self._print_job_repo = print_job_repository
 
     async def execute(self) -> UseCaseResult[SystemStatusDTO]:
         try:
@@ -32,8 +31,8 @@ class GetSystemStatusUseCase(UseCase[SystemStatusDTO]):
             # Get storage info
             storage_info = await self._storage.get_storage_info()
 
-            # Get system health
-            health = await self._system.get_health()
+            # Get system health (for future health metrics integration)
+            await self._system.get_health()
 
             # Get activity stats
             completed_count = await self._print_job_repo.count_by_status(PrintStatus.COMPLETED)

@@ -3,18 +3,16 @@
 import asyncio
 import logging
 import os
-import psutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
+import psutil
+
 from ...application.ports.services.system_service_port import (
-    LogEntry,
-    SystemHealth,
-    SystemServicePort,
-)
+    LogEntry, SystemHealth, SystemServicePort)
 from ...config import get_settings
 
 settings = get_settings()
@@ -137,14 +135,14 @@ class SystemService(SystemServicePort):
             logger.error(f"Failed to get status of {service.value}: {e}")
             return ServiceStatus.UNKNOWN
 
-    async def restart_service(self, service_name: str) -> Dict:
-        """Restart a system service.
+    async def restart_service_detailed(self, service_name: str) -> Dict:
+        """Restart a system service with detailed result.
 
         Args:
             service_name: Name of service to restart
 
         Returns:
-            Dict with result info
+            Dict with result info (service, message, new_status, etc.)
         """
         # Validate service name
         try:
@@ -393,72 +391,8 @@ class SystemService(SystemServicePort):
 
     async def restart_service(self, service_name: str) -> bool:
         """Restart a system service (Port interface)."""
-        result = await self._restart_service_internal(service_name)
+        result = await self.restart_service_detailed(service_name)
         return result.get("success", False)
-
-    async def _restart_service_internal(self, service_name: str) -> Dict:
-        """Internal restart service implementation."""
-        # Validate service name
-        try:
-            service = ServiceName(service_name)
-        except ValueError:
-            return {
-                "success": False,
-                "error": f"Unknown service: {service_name}",
-            }
-
-        logger.warning(f"Restarting service: {service_name}")
-
-        if self.mock_mode:
-            await asyncio.sleep(1)
-            logger.info(f"Mock: Service {service_name} restarted")
-            return {
-                "success": True,
-                "service": service_name,
-                "message": f"Service {service_name} restarted (mock mode)",
-                "new_status": ServiceStatus.RUNNING.value,
-            }
-
-        try:
-            result = subprocess.run(
-                ["sudo", "systemctl", "restart", service.value],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if result.returncode == 0:
-                await asyncio.sleep(2)
-                new_status = self._get_service_status(service)
-                logger.info(f"Service {service_name} restarted successfully")
-                return {
-                    "success": True,
-                    "service": service_name,
-                    "message": f"Service {service_name} restarted",
-                    "new_status": new_status.value,
-                }
-            else:
-                logger.error(f"Failed to restart {service_name}: {result.stderr}")
-                return {
-                    "success": False,
-                    "service": service_name,
-                    "error": result.stderr.strip() or "Restart command failed",
-                }
-
-        except subprocess.TimeoutExpired:
-            logger.error(f"Timeout restarting {service_name}")
-            return {
-                "success": False,
-                "service": service_name,
-                "error": "Restart command timed out",
-            }
-        except Exception as e:
-            logger.error(f"Exception restarting {service_name}: {e}")
-            return {
-                "success": False,
-                "service": service_name,
-                "error": str(e),
-            }
 
     async def reboot_system(self, delay_seconds: int = 0) -> bool:
         """Reboot the system (Port interface)."""
@@ -473,27 +407,43 @@ class SystemService(SystemServicePort):
         since: Optional[datetime] = None,
     ) -> List[LogEntry]:
         """Retrieve system logs (Port interface)."""
-        # Import the log viewer service
-        from .log_viewer import LogViewerService
+        from .log_viewer import LogLevel, LogSource, LogViewerService
 
         viewer = LogViewerService()
 
         try:
-            logs = await viewer.get_logs(
-                source=source,
-                limit=limit,
-                level=level,
-                since=since,
+            # Map string source to enum
+            try:
+                log_source = LogSource(source)
+            except ValueError:
+                log_source = LogSource.APP
+
+            # Map string level to enum
+            log_level = LogLevel.ALL
+            if level:
+                try:
+                    log_level = LogLevel(level.lower())
+                except ValueError:
+                    log_level = LogLevel.ALL
+
+            # Call synchronous get_logs method
+            result = viewer.get_logs(
+                source=log_source,
+                level=log_level,
+                lines=limit,
             )
 
+            # Convert log_viewer.LogEntry to port's LogEntry
             return [
                 LogEntry(
-                    timestamp=log.get("timestamp", ""),
-                    level=log.get("level", "info"),
+                    timestamp=(
+                        entry.timestamp.isoformat() if entry.timestamp else ""
+                    ),
+                    level=entry.level,
                     source=source,
-                    message=log.get("message", ""),
+                    message=entry.message,
                 )
-                for log in logs
+                for entry in result.entries
             ]
         except Exception as e:
             logger.error(f"Failed to get logs: {e}")

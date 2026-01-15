@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 
 from app.application.ports.repositories import SessionRepository
-from app.application.ports.services import ImageProcessorPort, CompositeOptions
+from app.application.ports.services import (CompositeOptions,
+                                            ImageProcessorPort, StoragePort)
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import SessionId
 
@@ -27,13 +28,17 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
 
     def __init__(
         self,
-        session_repo: SessionRepository,
+        session_repository: SessionRepository,
+        storage: StoragePort,
         image_processor: ImageProcessorPort,
     ):
-        self._session_repo = session_repo
+        self._session_repo = session_repository
+        self._storage = storage
         self._image_processor = image_processor
 
-    async def execute(self, input_data: GenerateCompositeInput) -> UseCaseResult[CompositeOutput]:
+    async def execute(
+        self, input_data: GenerateCompositeInput
+    ) -> UseCaseResult[CompositeOutput]:
         try:
             sid = SessionId(input_data.session_id)
         except ValueError:
@@ -63,7 +68,8 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
         )
 
         if not result.success:
-            return UseCaseResult.fail("COMPOSITE_FAILED", result.error_message or "Failed to generate composite")
+            error_msg = result.error_message or "Failed to generate composite"
+            return UseCaseResult.fail("COMPOSITE_FAILED", error_msg)
 
         session.set_composite_path(result.output_path)
         await self._session_repo.save(session)
