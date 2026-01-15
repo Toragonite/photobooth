@@ -34,19 +34,25 @@ if [[ "${SKIP_WELCOME_PRINT:-false}" == "true" ]]; then
     exit 0
 fi
 
-# Check if internet is available (skip welcome print if online)
-# This ensures welcome print only runs in offline/on-premise mode
-check_internet() {
-    # Try to ping common DNS servers (timeout 3 seconds)
-    ping -c 1 -W 3 8.8.8.8 &>/dev/null || ping -c 1 -W 3 1.1.1.1 &>/dev/null
-}
+# Check if force print is enabled (for testing)
+if [[ "${FORCE_WELCOME_PRINT:-false}" == "true" ]]; then
+    log "Force welcome print enabled (FORCE_WELCOME_PRINT=true)"
+else
+    # Check if internet is available (skip welcome print if online)
+    # This ensures welcome print only runs in offline/on-premise mode
+    check_internet() {
+        # Try to ping common DNS servers (timeout 3 seconds)
+        ping -c 1 -W 3 8.8.8.8 &>/dev/null || ping -c 1 -W 3 1.1.1.1 &>/dev/null
+    }
 
-if check_internet; then
-    log "Internet available - skipping welcome print (development mode)"
-    exit 0
+    if check_internet; then
+        log "Internet available - skipping welcome print (development mode)"
+        log "Set FORCE_WELCOME_PRINT=true to override"
+        exit 0
+    fi
+
+    log "Offline mode detected - proceeding with welcome print"
 fi
-
-log "Offline mode detected - proceeding with welcome print"
 
 # Check if already printed this boot
 if [[ -f "$LOCK_FILE" ]]; then
