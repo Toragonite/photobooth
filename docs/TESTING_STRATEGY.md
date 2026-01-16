@@ -550,8 +550,10 @@ class TestPrintAPI:
 
 class TestAdminAPI:
     async def test_login_with_correct_pin(self, client):
+        # Note: In dev environment, default PIN is "0000"
+        # In production, ADMIN_PIN must be set via environment variable
         response = await client.post("/api/admin/login", json={
-            "pin": "1998"
+            "pin": os.environ.get("ADMIN_PIN", "0000")  # Dev default
         })
 
         assert response.status_code == 200
@@ -559,7 +561,7 @@ class TestAdminAPI:
 
     async def test_login_with_wrong_pin(self, client):
         response = await client.post("/api/admin/login", json={
-            "pin": "0000"
+            "pin": "9999"  # Wrong PIN
         })
 
         assert response.status_code == 401
@@ -573,7 +575,7 @@ class TestAdminAPI:
     async def test_protected_endpoint_with_valid_token(self, client):
         # Login first
         login_response = await client.post("/api/admin/login", json={
-            "pin": "1998"
+            "pin": os.environ.get("ADMIN_PIN", "0000")  # Dev default
         })
         token = login_response.json()["data"]["token"]
 

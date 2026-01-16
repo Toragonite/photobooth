@@ -69,7 +69,7 @@ photobooth/
 - **RAM**: 8GB
 - **Storage**: 256GB microSD
 - **OS**: Raspberry Pi OS (64-bit)
-- **Network**: Wi-Fi AP mode (SSID: `photobooth`, Password: `photobooth-1998`)
+- **Network**: Wi-Fi AP mode (SSID: `photobooth`, Password: set via `WIFI_PASSWORD` env var)
 
 ### Camera
 - iPad Air camera via browser (getUserMedia API)

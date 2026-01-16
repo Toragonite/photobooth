@@ -52,7 +52,7 @@ Admin navigates to /admin or clicks Admin button on Home page.
 │ 5   │ Admin taps [Login] button                                      │
 ├─────┼────────────────────────────────────────────────────────────────┤
 │ 6   │ Frontend sends POST /api/admin/auth:                           │
-│     │ - Body: { pin: "1998" }                                        │
+│     │ - Body: { pin: "<ADMIN_PIN>" }  // Set via environment variable │
 ├─────┼────────────────────────────────────────────────────────────────┤
 │ 7   │ Backend validates PIN:                                         │
 │     │ - Compare with stored PIN in settings                          │
@@ -212,7 +212,7 @@ Admin navigates to /admin or clicks Admin button on Home page.
 | AUTH-BR-4 | Lockout duration: 5 minutes |
 | AUTH-BR-5 | Lockout counter resets after successful login |
 | AUTH-BR-6 | PIN is configurable via settings |
-| AUTH-BR-7 | Default PIN: 1998 |
+| AUTH-BR-7 | PIN is REQUIRED via ADMIN_PIN env var (no default) |
 
 ---
 
@@ -234,7 +234,7 @@ Admin navigates to /admin or clicks Admin button on Home page.
 
 ```typescript
 interface AdminAuthRequest {
-  pin: string;  // 4 digits, e.g., "1998"
+  pin: string;  // 4-8 digits (set via ADMIN_PIN env var)
 }
 ```
 
@@ -453,7 +453,7 @@ async def admin_auth(request: AdminAuthRequest) -> AdminAuthResponse:
         )
 
     # Validate PIN
-    correct_pin = settings_repo.get("admin_pin", "1998")
+    correct_pin = settings_repo.get("admin_pin")  # Required - no default
 
     if request.pin != correct_pin:
         # Increment failed attempts

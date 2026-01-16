@@ -58,7 +58,7 @@
 |---------|-------|
 | Wi-Fi Mode | Access Point (hostapd) |
 | SSID | `photobooth` |
-| Password | `photobooth-1998` |
+| Password | Set via `WIFI_PASSWORD` env var |
 | Hidden | No (visible) |
 | Pi IP | `192.168.4.1` |
 | DHCP Range | `192.168.4.10 - 192.168.4.50` |

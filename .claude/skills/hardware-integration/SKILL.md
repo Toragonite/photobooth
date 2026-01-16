@@ -103,7 +103,7 @@ macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
-wpa_passphrase=photobooth-1998
+wpa_passphrase=${WIFI_PASSWORD}  # Set via environment variable
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 ```

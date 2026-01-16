@@ -9,8 +9,9 @@ set -euo pipefail
 echo "[04-wifi-ap] Starting Wi-Fi AP configuration..."
 
 # Configuration from environment
+# WIFI_PASSWORD is REQUIRED - must be set before running
 WIFI_SSID="${WIFI_SSID:-photobooth}"
-WIFI_PASSWORD="${WIFI_PASSWORD:-photobooth-1998}"
+WIFI_PASSWORD="${WIFI_PASSWORD:?WIFI_PASSWORD is required. Set via environment variable.}"
 WIFI_CHANNEL="${WIFI_CHANNEL:-6}"
 PI_IP="${PI_IP:-192.168.4.1}"
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.4.10}"
@@ -201,7 +202,7 @@ echo "[04-wifi-ap] Wi-Fi AP configuration complete"
 echo ""
 echo "Wi-Fi Network Details:"
 echo "  SSID: $WIFI_SSID"
-echo "  Password: $WIFI_PASSWORD"
+echo "  Password: (set via WIFI_PASSWORD environment variable)"
 echo "  Pi IP: $PI_IP"
 echo ""
 echo "Clients can connect to the '$WIFI_SSID' network"

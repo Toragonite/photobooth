@@ -9,11 +9,13 @@ services:
     container_name: photobooth-backend
     restart: unless-stopped
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
       - DATABASE_URL=sqlite+aiosqlite:///./data/photobooth.db
-      - PRINTER_MOCK_MODE=${PRINTER_MOCK_MODE:-true}
+      - PRINTER_MOCK_MODE=${PRINTER_MOCK_MODE:-false}
       - PRINTER_NAME=${PRINTER_NAME:-Canon_Selphy_CP1500}
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - ADMIN_PIN=${ADMIN_PIN:-1998}
+      # REQUIRED: Set these in .env file before deployment
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required - generate with: openssl rand -base64 32}
+      - ADMIN_PIN=${ADMIN_PIN:?ADMIN_PIN is required - set a secure 4-8 digit PIN}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - photobooth-data:/app/data

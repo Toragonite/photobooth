@@ -204,7 +204,7 @@ Admin navigates to Settings section and modifies a value.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| admin_pin | string | 1998 | Admin access PIN |
+| admin_pin | string | (required) | Admin access PIN (set via ADMIN_PIN env var) |
 | max_failed_attempts | number | 5 | Lockout after N failures |
 | lockout_minutes | number | 5 | Lockout duration |
 | token_expiry_minutes | number | 30 | JWT token lifetime |

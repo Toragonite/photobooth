@@ -142,7 +142,7 @@ macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
-wpa_passphrase=photobooth-1998
+wpa_passphrase=\${WIFI_PASSWORD}  # Set via environment variable
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
@@ -300,8 +300,12 @@ networks:
 
 ```bash
 # .env
-JWT_SECRET=your-secret-key-here-change-in-production
-ADMIN_PIN_HASH=$2b$12$...  # bcrypt hash of PIN
+# REQUIRED: Generate with: openssl rand -base64 32
+SECRET_KEY=
+
+# REQUIRED: Set your admin PIN (4-8 digits)
+ADMIN_PIN=
+
 LOG_LEVEL=error
 TZ=Africa/Kigali
 ```
@@ -612,10 +616,10 @@ docker compose restart backend
 ## Security Checklist
 
 - [ ] Change default Pi password
-- [ ] Change admin PIN from default "1998"
-- [ ] Generate new JWT_SECRET
+- [ ] Set ADMIN_PIN in .env (no default - required)
+- [ ] Set SECRET_KEY in .env (generate with: openssl rand -base64 32)
+- [ ] Set WIFI_PASSWORD environment variable before setup
 - [ ] Disable SSH password auth (use keys)
-- [ ] Set strong Wi-Fi password
 - [ ] Restrict CUPS admin access
 - [ ] Enable firewall (ufw)
 

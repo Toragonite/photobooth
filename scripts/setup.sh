@@ -21,9 +21,10 @@ CHECKPOINT_FILE="${PHOTOBOOTH_DIR}/.setup-checkpoint"
 LOG_FILE="/var/log/photobooth-setup.log"
 PHASES_DIR="${SCRIPT_DIR}/setup-phases"
 
-# Default values from environment or defaults
+# Configuration from environment variables
+# WIFI_PASSWORD is REQUIRED - must be set before running setup
 export WIFI_SSID="${WIFI_SSID:-photobooth}"
-export WIFI_PASSWORD="${WIFI_PASSWORD:-photobooth-1998}"
+export WIFI_PASSWORD="${WIFI_PASSWORD:?WIFI_PASSWORD is required. Set via: export WIFI_PASSWORD=your-secure-password}"
 export WIFI_CHANNEL="${WIFI_CHANNEL:-6}"
 export PI_IP="${PI_IP:-192.168.4.1}"
 export TIMEZONE="${TIMEZONE:-Africa/Kigali}"
@@ -125,11 +126,14 @@ Examples:
 
 Environment Variables:
     WIFI_SSID        Wi-Fi network name (default: photobooth)
-    WIFI_PASSWORD    Wi-Fi password (default: photobooth-1998)
+    WIFI_PASSWORD    Wi-Fi password (REQUIRED - no default)
     WIFI_CHANNEL     Wi-Fi channel (default: 6)
     PI_IP            Raspberry Pi IP address (default: 192.168.4.1)
     TIMEZONE         System timezone (default: Africa/Kigali)
     COUNTRY_CODE     Wi-Fi country code (default: RW)
+
+Before running, set required environment variables:
+    export WIFI_PASSWORD="your-secure-wifi-password"
 
 EOF
     exit 0

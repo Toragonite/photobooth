@@ -9,8 +9,9 @@
 set -euo pipefail
 
 # Configuration
+# WIFI_PASSWORD is REQUIRED - must be set before running
 WIFI_SSID="${WIFI_SSID:-photobooth}"
-WIFI_PASSWORD="${WIFI_PASSWORD:-photobooth-1998}"
+WIFI_PASSWORD="${WIFI_PASSWORD:?WIFI_PASSWORD is required. Set via: export WIFI_PASSWORD=your-secure-password}"
 WIFI_INTERFACE="${WIFI_INTERFACE:-wlan0}"
 WIFI_COUNTRY="${WIFI_COUNTRY:-RW}"
 PI_IP="${PI_IP:-192.168.4.1}"
@@ -71,7 +72,7 @@ echo "==========================================${NC}"
 echo ""
 echo "Configuration:"
 echo "  SSID: $WIFI_SSID"
-echo "  Password: $WIFI_PASSWORD"
+echo "  Password: (set via WIFI_PASSWORD environment variable)"
 echo "  Band: $WIFI_HW_MODE (channel $WIFI_CHANNEL)"
 echo "  Pi IP: $PI_IP"
 echo "  DHCP Range: $DHCP_RANGE_START - $DHCP_RANGE_END"
@@ -220,7 +221,7 @@ echo "==========================================${NC}"
 echo ""
 echo "Wi-Fi Network:"
 echo "  SSID:     $WIFI_SSID"
-echo "  Password: $WIFI_PASSWORD"
+echo "  Password: (set via WIFI_PASSWORD environment variable)"
 echo ""
 echo "Connect devices to '$WIFI_SSID' and access:"
 echo "  https://$PI_IP"

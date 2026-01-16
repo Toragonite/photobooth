@@ -489,7 +489,7 @@ Authenticate admin.
 **Request Body:**
 ```json
 {
-  "pin": "1998"
+  "pin": "1234"  // Example - use your configured ADMIN_PIN
 }
 ```
 
@@ -748,8 +748,8 @@ Change admin PIN.
 **Request Body:**
 ```json
 {
-  "current_pin": "1998",
-  "new_pin": "2024"
+  "current_pin": "1234",  // Example - use your current ADMIN_PIN
+  "new_pin": "5678"       // Example - set your new PIN
 }
 ```
 

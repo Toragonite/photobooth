@@ -13,7 +13,7 @@ class TestAdminLogin:
         """Successful login with correct PIN."""
         response = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
 
         assert response.status_code == 200
@@ -27,7 +27,7 @@ class TestAdminLogin:
         """Login fails with incorrect PIN."""
         response = await client.post(
             "/api/admin/login",
-            json={"pin": "0000"},
+            json={"pin": "9999"},  # Wrong PIN
         )
 
         assert response.status_code == 200
@@ -64,7 +64,7 @@ class TestAdminProtectedEndpoints:
         # Login first
         login_resp = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
         token = login_resp.json()["data"]["token"]
 
@@ -109,7 +109,7 @@ class TestAdminLogout:
         # Login
         login_resp = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
         token = login_resp.json()["data"]["token"]
 
@@ -138,7 +138,7 @@ class TestAdminPrintHistory:
         # Login
         login_resp = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
         token = login_resp.json()["data"]["token"]
 
@@ -160,7 +160,7 @@ class TestAdminPrintHistory:
         # Login
         login_resp = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
         token = login_resp.json()["data"]["token"]
 
@@ -186,7 +186,7 @@ class TestAdminStorage:
         # Login
         login_resp = await client.post(
             "/api/admin/login",
-            json={"pin": "1998"},
+            json={"pin": "0000"},
         )
         token = login_resp.json()["data"]["token"]
 
