@@ -179,6 +179,13 @@ check_services() {
     else
         warn "photobooth-backup.timer is not active"
     fi
+
+    # Check welcome-print service
+    if systemctl is-enabled --quiet photobooth-welcome-print 2>/dev/null; then
+        pass "photobooth-welcome-print is enabled"
+    else
+        warn "photobooth-welcome-print is not enabled"
+    fi
 }
 
 # Application checks
@@ -223,13 +230,29 @@ check_printer() {
     echo ""
     echo "Printer Checks:"
 
+    local PRINTER_NAME="${PRINTER_NAME:-SelphyCP1500}"
+
+    # Check usblp is blacklisted
+    if [[ -f /etc/modprobe.d/blacklist-usblp.conf ]]; then
+        pass "usblp module is blacklisted"
+    else
+        fail "usblp module NOT blacklisted (printer won't work!)"
+    fi
+
+    # Check usblp is not loaded
+    if ! lsmod | grep -q usblp; then
+        pass "usblp module is not loaded"
+    else
+        warn "usblp module is loaded (unplug/replug USB or reboot)"
+    fi
+
     # Check if printer is configured
-    if lpstat -p Canon_Selphy_CP1500 &>/dev/null; then
-        pass "Canon_Selphy_CP1500 is configured"
+    if lpstat -p "$PRINTER_NAME" &>/dev/null; then
+        pass "$PRINTER_NAME is configured"
 
         # Check printer status
         local printer_status
-        printer_status=$(lpstat -p Canon_Selphy_CP1500 2>/dev/null | head -1)
+        printer_status=$(lpstat -p "$PRINTER_NAME" 2>/dev/null | head -1)
         if echo "$printer_status" | grep -qi "idle\|ready"; then
             pass "Printer is ready"
         elif echo "$printer_status" | grep -qi "enabled"; then
@@ -238,7 +261,7 @@ check_printer() {
             warn "Printer status: $printer_status"
         fi
     else
-        warn "Printer not configured (connect Canon Selphy CP1500 to complete)"
+        warn "Printer $PRINTER_NAME not configured (connect Canon Selphy CP1500 to complete)"
     fi
 }
 

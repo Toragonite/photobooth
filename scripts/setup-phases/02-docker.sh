@@ -36,8 +36,9 @@ for i in {1..30}; do
     sleep 1
 done
 
-# Add pi user to docker group
-echo "Adding pi user to docker group..."
+# Add user to docker group (toragonite or pi)
+echo "Adding user to docker group..."
+usermod -aG docker toragonite 2>/dev/null || true
 usermod -aG docker pi 2>/dev/null || true
 
 # Install Docker Compose plugin if not present

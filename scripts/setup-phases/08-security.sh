@@ -116,10 +116,16 @@ secure_ssh() {
 secure_permissions() {
     echo "Setting secure file permissions..."
 
+    # Determine user (toragonite or pi)
+    local OWNER="toragonite"
+    if ! id "$OWNER" &>/dev/null; then
+        OWNER="pi"
+    fi
+
     # Secure .env file
     if [[ -f "$PHOTOBOOTH_DIR/.env" ]]; then
         chmod 600 "$PHOTOBOOTH_DIR/.env"
-        chown pi:pi "$PHOTOBOOTH_DIR/.env"
+        chown "$OWNER:$OWNER" "$PHOTOBOOTH_DIR/.env"
         echo "  .env file secured"
     fi
 
@@ -127,13 +133,13 @@ secure_permissions() {
     if [[ -d "$PHOTOBOOTH_DIR/certs" ]]; then
         chmod 600 "$PHOTOBOOTH_DIR/certs"/*.key 2>/dev/null || true
         chmod 644 "$PHOTOBOOTH_DIR/certs"/*.crt 2>/dev/null || true
-        chown -R pi:pi "$PHOTOBOOTH_DIR/certs"
+        chown -R "$OWNER:$OWNER" "$PHOTOBOOTH_DIR/certs"
         echo "  SSL certificates secured"
     fi
 
     # Secure scripts
     chmod 700 "$PHOTOBOOTH_DIR/scripts"/*.sh 2>/dev/null || true
-    chown -R pi:pi "$PHOTOBOOTH_DIR/scripts"
+    chown -R "$OWNER:$OWNER" "$PHOTOBOOTH_DIR/scripts"
     echo "  Scripts secured"
 }
 

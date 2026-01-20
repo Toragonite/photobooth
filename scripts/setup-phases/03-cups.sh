@@ -8,6 +8,29 @@ set -euo pipefail
 
 echo "[03-cups] Starting CUPS installation..."
 
+# ============================================
+# Blacklist usblp kernel module (CRITICAL)
+# ============================================
+# The usblp module conflicts with CUPS USB backend.
+# Without this, printer will show "Waiting for printer to become available"
+echo "Blacklisting usblp kernel module..."
+
+cat > /etc/modprobe.d/blacklist-usblp.conf << 'EOF'
+# Blacklist usblp to allow CUPS to access USB printers directly
+# Without this, Canon Selphy CP1500 won't work with CUPS
+blacklist usblp
+EOF
+
+# Remove usblp if currently loaded
+if lsmod | grep -q usblp; then
+    echo "Removing currently loaded usblp module..."
+    rmmod usblp 2>/dev/null || true
+fi
+
+# Update initramfs to apply blacklist on boot
+echo "Updating initramfs..."
+update-initramfs -u 2>/dev/null || true
+
 # Install CUPS and related packages
 echo "Installing CUPS packages..."
 apt-get install -y -qq \
@@ -154,3 +177,7 @@ echo "[03-cups] CUPS installation complete"
 echo ""
 echo "Note: The printer will be configured in phase 05-printer"
 echo "      after the Canon Selphy CP1500 is connected via USB"
+echo ""
+echo "IMPORTANT: If the printer was connected during this setup,"
+echo "           you may need to unplug and replug the USB cable"
+echo "           for the usblp blacklist to take effect."

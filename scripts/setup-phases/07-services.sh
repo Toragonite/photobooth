@@ -19,6 +19,7 @@ SERVICE_FILES=(
     "photobooth-watchdog.timer"
     "photobooth-backup.service"
     "photobooth-backup.timer"
+    "photobooth-welcome-print.service"
 )
 
 # Install service files
@@ -56,6 +57,7 @@ echo "Enabling services..."
 systemctl enable photobooth.service
 systemctl enable photobooth-watchdog.timer
 systemctl enable photobooth-backup.timer
+systemctl enable photobooth-welcome-print.service
 
 # Start services
 echo "Starting services..."
@@ -63,12 +65,13 @@ systemctl start photobooth.service
 sleep 5
 systemctl start photobooth-watchdog.timer
 systemctl start photobooth-backup.timer
+# Note: welcome-print runs on boot, not started manually here
 
 # Check service status
 echo ""
 echo "Service status:"
 
-for service in "photobooth.service" "photobooth-watchdog.timer" "photobooth-backup.timer"; do
+for service in "photobooth.service" "photobooth-watchdog.timer" "photobooth-backup.timer" "photobooth-welcome-print.service"; do
     if systemctl is-active --quiet "$service"; then
         echo "  $service: active"
     else

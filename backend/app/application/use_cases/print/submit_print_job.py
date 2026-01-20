@@ -162,10 +162,15 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             logger.debug(f"Print job {job_id} CUPS status: {status}")
 
             if status == "completed":
+                # Wait for actual printing to finish (CUPS completes when data is sent, not printed)
+                # Estimate: ~20 seconds per copy for Canon Selphy CP1500
                 async with async_session() as db:
                     repo = SQLAlchemyPrintJobRepository(db)
                     job = await repo.get_by_id(JobId(job_id))
                     if job:
+                        extra_wait = job.copies * 20  # 20 seconds per copy
+                        logger.info(f"Print job {job_id} CUPS done, waiting {extra_wait}s for {job.copies} copies to print")
+                        await asyncio.sleep(extra_wait)
                         job.mark_completed()
                         await repo.save(job)
                         await db.commit()
@@ -187,6 +192,9 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                     repo = SQLAlchemyPrintJobRepository(db)
                     job = await repo.get_by_id(JobId(job_id))
                     if job:
+                        extra_wait = job.copies * 20  # 20 seconds per copy
+                        logger.info(f"Print job {job_id} assumed done, waiting {extra_wait}s for {job.copies} copies to print")
+                        await asyncio.sleep(extra_wait)
                         job.mark_completed()
                         await repo.save(job)
                         await db.commit()
