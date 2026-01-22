@@ -1,8 +1,8 @@
 [Unit]
 Description=PhotoBooth Auto Network Mode
 Documentation=https://github.com/toragonite/photobooth
-After=network.target dhcpcd.service
-Wants=network.target
+After=network-online.target NetworkManager.service
+Wants=network-online.target
 
 [Service]
 Type=oneshot

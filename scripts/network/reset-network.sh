@@ -1,10 +1,13 @@
 #!/bin/bash
 #
-# PhotoBooth Network Reset Script
+# PhotoBooth Network Reset Script (NetworkManager version)
 # Restores network configuration to defaults
 #
 
 set -euo pipefail
+
+WIFI_INTERFACE="${WIFI_INTERFACE:-wlan0}"
+AP_CONNECTION_NAME="photobooth-ap"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,31 +39,34 @@ fi
 check_root
 
 echo ""
-echo "Stopping services..."
+echo "Stopping AP mode if active..."
+nmcli connection down "$AP_CONNECTION_NAME" 2>/dev/null || true
+
+echo "Removing AP connection profile..."
+nmcli connection delete "$AP_CONNECTION_NAME" 2>/dev/null || true
+
+echo "Stopping legacy services..."
 systemctl stop hostapd 2>/dev/null || true
 systemctl stop dnsmasq 2>/dev/null || true
-
-echo "Disabling services..."
 systemctl disable hostapd 2>/dev/null || true
 systemctl disable dnsmasq 2>/dev/null || true
-systemctl mask hostapd 2>/dev/null || true
 
-echo "Restoring dnsmasq config..."
-if [[ -f /etc/dnsmasq.conf.orig ]]; then
-    mv /etc/dnsmasq.conf.orig /etc/dnsmasq.conf
-    echo -e "${GREEN}[OK]${NC} Original dnsmasq.conf restored"
-fi
+echo "Re-enabling NetworkManager management of wlan0..."
+nmcli device set "$WIFI_INTERFACE" managed yes 2>/dev/null || true
 
-echo "Removing hostapd config..."
-rm -f /etc/hostapd/hostapd.conf
-sed -i 's|^DAEMON_CONF=.*|#DAEMON_CONF=""|' /etc/default/hostapd 2>/dev/null || true
+echo "Reconnecting to available networks..."
+nmcli device connect "$WIFI_INTERFACE" 2>/dev/null || true
 
-echo "Removing static IP from dhcpcd..."
-sed -i '/# PhotoBooth Wi-Fi AP/,/nohook wpa_supplicant/d' /etc/dhcpcd.conf
+# Wait for connection
+echo "Waiting for connection..."
+sleep 5
 
-echo "Restarting networking..."
-systemctl restart dhcpcd
-systemctl restart wpa_supplicant 2>/dev/null || true
+# Show status
+echo ""
+echo "Current network status:"
+nmcli device status
+echo ""
+nmcli connection show --active
 
 echo ""
 echo -e "${GREEN}=========================================="
@@ -68,5 +74,6 @@ echo " Reset Complete!"
 echo "==========================================${NC}"
 echo ""
 echo "The Pi is now in normal Wi-Fi client mode."
-echo "You may need to reboot: sudo reboot"
+echo ""
+ip addr show "$WIFI_INTERFACE" | grep "inet " || echo "No IP assigned yet"
 echo ""
