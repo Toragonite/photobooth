@@ -172,22 +172,29 @@ export function CameraPage() {
 
       {/* Camera preview - grows to fill space */}
       <div
-        className={`section-grow relative bg-black rounded-3xl overflow-hidden ${
-          layoutType === "1x4" ? "max-h-[50vh]" : ""
-        }`}
+        className="section-grow relative bg-black rounded-3xl overflow-hidden flex items-center justify-center"
       >
-        {/* Video element - always rendered so ref is available */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className={`w-full h-full ${layoutType === "1x4" ? "object-contain" : "object-cover"} ${cameraState === "initializing" ? "invisible" : ""}`}
-          style={{
-            transform: "scaleX(-1)", // Mirror for selfie
-            filter: videoFilter, // Apply real-time enhancement preview
-          }}
-        />
+        {/* Video container with aspect ratio control */}
+        <div
+          className={`relative overflow-hidden ${
+            layoutType === "1x4"
+              ? "w-full aspect-video" // 16:9 aspect ratio, crops top/bottom
+              : "w-full h-full"
+          }`}
+        >
+          {/* Video element - always rendered so ref is available */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`w-full h-full object-cover ${cameraState === "initializing" ? "invisible" : ""}`}
+            style={{
+              transform: "scaleX(-1)", // Mirror for selfie
+              filter: videoFilter, // Apply real-time enhancement preview
+            }}
+          />
+        </div>
 
         {/* Loading overlay */}
         {cameraState === "initializing" && (

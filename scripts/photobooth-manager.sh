@@ -53,13 +53,17 @@ print_status_bar() {
         network_mode="${GREEN}Client${NC}"
     fi
 
-    # Printer status
-    if lpstat -p "$PRINTER_NAME" 2>/dev/null | grep -qi "idle\|ready\|enabled"; then
+    # Printer status - check USB connection first
+    if ! lsusb 2>/dev/null | grep -qi "canon"; then
+        printer_status="${RED}Disconnected${NC}"
+    elif lpstat -p "$PRINTER_NAME" 2>/dev/null | grep -qi "idle"; then
         printer_status="${GREEN}Ready${NC}"
+    elif lpstat -p "$PRINTER_NAME" 2>/dev/null | grep -qi "printing"; then
+        printer_status="${YELLOW}Printing${NC}"
     elif lpstat -p "$PRINTER_NAME" &>/dev/null; then
-        printer_status="${YELLOW}Busy${NC}"
+        printer_status="${YELLOW}Configured${NC}"
     else
-        printer_status="${RED}Offline${NC}"
+        printer_status="${RED}Not Setup${NC}"
     fi
 
     echo -e "${BOLD}Status:${NC} Docker: $docker_status | Network: $network_mode | Printer: $printer_status"
