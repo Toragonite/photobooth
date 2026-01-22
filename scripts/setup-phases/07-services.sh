@@ -20,6 +20,7 @@ SERVICE_FILES=(
     "photobooth-backup.service"
     "photobooth-backup.timer"
     "photobooth-welcome-print.service"
+    "photobooth-network.service"
 )
 
 # Install service files
@@ -41,7 +42,9 @@ done
 # Make scripts executable
 echo "Setting script permissions..."
 chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+chmod +x "$SCRIPT_DIR"/network/*.sh 2>/dev/null || true
 chmod +x "$PHOTOBOOTH_DIR/scripts"/*.sh 2>/dev/null || true
+chmod +x "$PHOTOBOOTH_DIR/scripts/network"/*.sh 2>/dev/null || true
 
 # Reload systemd daemon
 echo "Reloading systemd daemon..."
@@ -58,6 +61,7 @@ systemctl enable photobooth.service
 systemctl enable photobooth-watchdog.timer
 systemctl enable photobooth-backup.timer
 systemctl enable photobooth-welcome-print.service
+systemctl enable photobooth-network.service
 
 # Start services
 echo "Starting services..."
@@ -71,7 +75,7 @@ systemctl start photobooth-backup.timer
 echo ""
 echo "Service status:"
 
-for service in "photobooth.service" "photobooth-watchdog.timer" "photobooth-backup.timer" "photobooth-welcome-print.service"; do
+for service in "photobooth.service" "photobooth-watchdog.timer" "photobooth-backup.timer" "photobooth-welcome-print.service" "photobooth-network.service"; do
     if systemctl is-active --quiet "$service"; then
         echo "  $service: active"
     else

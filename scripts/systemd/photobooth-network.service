@@ -1,0 +1,23 @@
+[Unit]
+Description=PhotoBooth Auto Network Mode
+Documentation=https://github.com/toragonite/photobooth
+After=network.target dhcpcd.service
+Wants=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Wait for network to settle
+ExecStartPre=/bin/sleep 10
+
+# Auto-detect network mode (AP if no internet, client if internet available)
+ExecStart=/home/toragonite/Documents/photobooth/scripts/network/auto-network-mode.sh --auto
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photobooth-network
+
+[Install]
+WantedBy=multi-user.target
