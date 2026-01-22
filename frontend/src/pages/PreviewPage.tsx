@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { useSession } from "../contexts/SessionContext";
 import { api } from "../services/api";
 import { LoadingSpinner, CopySelector } from "../components/common";
 
@@ -26,6 +27,7 @@ export function PreviewPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { settings } = useSettings();
+  const { sessionId, layoutType } = useSession();
 
   const [compositeUrl, setCompositeUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(true);
@@ -34,8 +36,6 @@ export function PreviewPage() {
   const [includeLogo, setIncludeLogo] = useState(settings.logoEnabled);
   const [frameType, setFrameType] = useState<FrameType>("classic");
   const [error, setError] = useState<string | null>(null);
-
-  const sessionId = sessionStorage.getItem("sessionId");
 
   // Generate composite on mount
   useEffect(() => {
@@ -52,6 +52,7 @@ export function PreviewPage() {
           includeDate,
           includeLogo,
           frameType,
+          layoutType,
         );
 
         if (response.success && response.data) {
@@ -70,7 +71,7 @@ export function PreviewPage() {
 
     generateComposite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, includeDate, includeLogo, frameType]);
+  }, [sessionId, includeDate, includeLogo, frameType, layoutType]);
 
   const handlePrint = async () => {
     if (!sessionId) return;

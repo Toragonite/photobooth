@@ -1,12 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useSession } from "../contexts/SessionContext";
 import { api } from "../services/api";
-import { LoadingSpinner } from "../components/common";
+import { LoadingSpinner, LayoutSelector } from "../components/common";
 
 export function HomePage() {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { layoutType, setLayoutType, setSessionId } = useSession();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleStart = async () => {
@@ -15,8 +17,8 @@ export function HomePage() {
       const response = await api.createSession(language);
 
       if (response.success && response.data) {
-        // Store session ID for the flow
-        sessionStorage.setItem("sessionId", response.data.session_id);
+        // Store session ID in context
+        setSessionId(response.data.session_id);
         navigate("/camera");
       }
     } catch (error) {
@@ -31,50 +33,121 @@ export function HomePage() {
   return (
     <div className="center-content text-center">
       {/* Logo/Title area */}
-      <div className="mb-12">
-        <h1 className="text-5xl md:text-6xl font-bold text-primary mb-4">
+      <div className="mb-8">
+        <h1 className="text-5xl md:text-6xl font-bold text-primary mb-3">
           {t("home.title")}
         </h1>
-        <p className="text-xl text-text-muted">{t("home.subtitle")}</p>
+        <p className="text-lg text-text-muted">{t("home.subtitle")}</p>
       </div>
 
-      {/* 4-cut preview illustration */}
-      <div className="mb-12">
-        <div className="grid grid-cols-2 gap-2 w-48 h-64 mx-auto">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-primary-light rounded-lg flex items-center justify-center"
-            >
-              <svg
-                className="w-12 h-12 text-primary opacity-50"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
+      {/* Layout selector */}
+      <div className="mb-8">
+        <p className="text-sm text-text-muted mb-3">{t("home.selectLayout")}</p>
+        <LayoutSelector value={layoutType} onChange={setLayoutType} />
+      </div>
+
+      {/* Preview illustration based on selected layout */}
+      <div className="mb-8">
+        {layoutType === "1x4" ? (
+          /* 1x4 Strip preview */
+          <div className="flex gap-2 justify-center">
+            {/* Left strip */}
+            <div className="flex flex-col gap-1 bg-gray-50 p-2 rounded-xl">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={`left-${i}`}
+                  className="w-16 h-10 bg-primary-light rounded flex items-center justify-center"
+                >
+                  <svg
+                    className="w-5 h-5 text-primary opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {/* Right strip (duplicate) */}
+            <div className="flex flex-col gap-1 bg-gray-50 p-2 rounded-xl">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={`right-${i}`}
+                  className="w-16 h-10 bg-primary-light rounded flex items-center justify-center"
+                >
+                  <svg
+                    className="w-5 h-5 text-primary opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* 2x2 Grid preview */
+          <div className="grid grid-cols-2 gap-2 w-40 h-52 mx-auto bg-gray-50 p-2 rounded-xl">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-primary-light rounded flex items-center justify-center"
+              >
+                <svg
+                  className="w-8 h-8 text-primary opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Start button */}
       <button
         onClick={handleStart}
         disabled={isLoading}
-        className="btn-primary text-2xl px-16 py-6 rounded-full
+        className="btn-primary text-xl px-12 py-5 rounded-full
                    shadow-lg hover:shadow-xl transform hover:scale-105
                    transition-all duration-300"
       >
@@ -88,7 +161,7 @@ export function HomePage() {
       {/* Admin link (subtle) */}
       <button
         onClick={() => navigate("/admin")}
-        className="mt-16 text-text-muted text-sm hover:text-primary transition-colors"
+        className="mt-12 text-text-muted text-sm hover:text-primary transition-colors"
       >
         {t("admin.title")}
       </button>

@@ -50,6 +50,7 @@ class CompositeRequest(BaseModel):
     include_logo: bool = True
     include_date: bool = True
     frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
+    layout_type: str = "2x2"  # 2x2 (grid) or 1x4 (vertical strip duplicated)
 
 
 class UpdateLanguageRequest(BaseModel):
@@ -325,6 +326,7 @@ async def generate_composite(
             include_date=request.include_date,
             include_logo=request.include_logo,
             frame_type=request.frame_type,
+            layout_type=request.layout_type,
         )
     )
 

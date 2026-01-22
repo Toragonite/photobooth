@@ -204,6 +204,7 @@ class ApiClient {
     includeDate: boolean = true,
     includeLogo: boolean = false,
     frameType: string = "classic",
+    layoutType: string = "2x2",
   ): Promise<ApiResponse<CompositeResult>> {
     return this.request(`/session/${sessionId}/composite`, {
       method: "POST",
@@ -211,6 +212,7 @@ class ApiClient {
         include_date: includeDate,
         include_logo: includeLogo,
         frame_type: frameType,
+        layout_type: layoutType,
       }),
     });
   }

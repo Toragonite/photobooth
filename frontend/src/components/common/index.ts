@@ -6,3 +6,4 @@ export { CountdownDisplay } from "./CountdownDisplay";
 export { ProgressRing } from "./ProgressRing";
 export { PhotoThumbnail } from "./PhotoThumbnail";
 export { CopySelector } from "./CopySelector";
+export { LayoutSelector } from "./LayoutSelector";

@@ -15,6 +15,12 @@ class FrameType(str, Enum):
     ROUNDED = "rounded"        # Rounded corners on photos
 
 
+class LayoutType(str, Enum):
+    """Photo layout arrangement types."""
+    STRIP_1X4 = "1x4"   # 4 photos in vertical strip, duplicated side-by-side
+    GRID_2X2 = "2x2"    # 4 photos in standard 2x2 grid
+
+
 @dataclass
 class CompositeOptions:
     """Options for composite image generation."""
@@ -22,6 +28,7 @@ class CompositeOptions:
     include_logo: bool = True
     background_color: str = "#FFFFFF"
     frame_type: FrameType = FrameType.CLASSIC
+    layout_type: LayoutType = LayoutType.GRID_2X2
     bottom_margin: int = 60  # Extra margin at bottom for date/logo (in pixels)
 
 

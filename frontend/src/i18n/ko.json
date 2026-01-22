@@ -7,7 +7,14 @@
     "title": "인생네컷",
     "subtitle": "4장의 사진으로 추억을 만들어보세요",
     "startButton": "시작하기",
-    "languageToggle": "English"
+    "languageToggle": "English",
+    "selectLayout": "레이아웃 선택",
+    "layout": {
+      "strip": "스트립 (1x4)",
+      "stripDesc": "세로로 2장 출력",
+      "grid": "그리드 (2x2)",
+      "gridDesc": "기본 4컷 레이아웃"
+    }
   },
   "camera": {
     "title": "사진 촬영",

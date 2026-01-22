@@ -40,36 +40,56 @@
 
 /* Custom component styles */
 @layer components {
-  /* Primary button */
+  /* Primary button - Modern/Minimal */
   .btn-primary {
-    @apply bg-primary text-white font-semibold py-4 px-8 rounded-2xl
-           transition-all duration-200 ease-in-out
-           hover:bg-primary-dark active:scale-95
+    @apply bg-primary text-white font-medium py-3 px-6 rounded-xl
+           transition-all duration-200 ease-out
+           hover:bg-primary-dark hover:shadow-medium
+           active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed
-           min-h-[60px] min-w-[120px];
+           min-h-[52px] min-w-[100px];
   }
 
-  /* Secondary button */
+  /* Secondary button - Modern/Minimal */
   .btn-secondary {
-    @apply bg-secondary text-white font-semibold py-4 px-8 rounded-2xl
-           transition-all duration-200 ease-in-out
-           hover:bg-secondary-dark active:scale-95
+    @apply bg-secondary text-white font-medium py-3 px-6 rounded-xl
+           transition-all duration-200 ease-out
+           hover:bg-secondary-dark hover:shadow-medium
+           active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed
-           min-h-[60px] min-w-[120px];
+           min-h-[52px] min-w-[100px];
   }
 
-  /* Outline button */
+  /* Outline button - Modern/Minimal */
   .btn-outline {
-    @apply border-2 border-primary text-primary font-semibold py-4 px-8 rounded-2xl
-           transition-all duration-200 ease-in-out
-           hover:bg-primary hover:text-white active:scale-95
+    @apply border-2 border-gray-200 text-text font-medium py-3 px-6 rounded-xl
+           transition-all duration-200 ease-out
+           hover:border-primary hover:text-primary
+           active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed
-           min-h-[60px] min-w-[120px];
+           min-h-[52px] min-w-[100px];
   }
 
-  /* Card container */
+  /* Card container - Modern */
   .card {
-    @apply bg-surface rounded-3xl shadow-lg p-6;
+    @apply bg-surface rounded-2xl shadow-card p-5;
+  }
+
+  /* Modern card with hover effect */
+  .card-modern {
+    @apply bg-white rounded-2xl shadow-card p-5
+           transition-shadow hover:shadow-medium;
+  }
+
+  /* Selection card for layout selector */
+  .selection-card {
+    @apply border-2 border-gray-200 rounded-2xl p-4
+           transition-all duration-200 cursor-pointer
+           hover:border-primary/40 hover:bg-primary-light/30;
+  }
+
+  .selection-card.selected {
+    @apply border-primary bg-primary-light/50;
   }
 
   /* Touch target - minimum 44x44px */

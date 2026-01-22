@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { useSession } from "../contexts/SessionContext";
 import { useCamera, useCountdown } from "../hooks";
 import { api } from "../services/api";
 import {
@@ -38,6 +39,7 @@ export function CameraPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { settings } = useSettings();
+  const { layoutType, sessionId } = useSession();
 
   const [cameraState, setCameraState] = useState<CameraState>("initializing");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -65,7 +67,7 @@ export function CameraPage() {
     capture,
     start,
     stop,
-  } = useCamera();
+  } = useCamera({ layoutType });
 
   // Apply preset when selected
   const handlePresetChange = (preset: PresetKey) => {
@@ -116,7 +118,6 @@ export function CameraPage() {
         setPhotos(newPhotos);
 
         // Upload to server
-        const sessionId = sessionStorage.getItem("sessionId");
         if (sessionId) {
           const blob = await fetch(imageData).then((r) => r.blob());
           await api.uploadPhoto(sessionId, newPhotos.length - 1, blob);
@@ -170,14 +171,18 @@ export function CameraPage() {
       </div>
 
       {/* Camera preview - grows to fill space */}
-      <div className="section-grow relative bg-black rounded-3xl overflow-hidden">
+      <div
+        className={`section-grow relative bg-black rounded-3xl overflow-hidden ${
+          layoutType === "1x4" ? "max-h-[50vh]" : ""
+        }`}
+      >
         {/* Video element - always rendered so ref is available */}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className={`w-full h-full object-cover ${cameraState === "initializing" ? "invisible" : ""}`}
+          className={`w-full h-full ${layoutType === "1x4" ? "object-contain" : "object-cover"} ${cameraState === "initializing" ? "invisible" : ""}`}
           style={{
             transform: "scaleX(-1)", // Mirror for selfie
             filter: videoFilter, // Apply real-time enhancement preview
@@ -212,6 +217,7 @@ export function CameraPage() {
             isActive={photos.length === index}
             isClickable={!!photos[index]}
             onClick={() => photos[index] && handleRetake(index)}
+            variant={layoutType === "1x4" ? "landscape" : "square"}
           />
         ))}
       </div>

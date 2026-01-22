@@ -5,6 +5,7 @@ interface PhotoThumbnailProps {
   isClickable?: boolean;
   showPlaceholder?: boolean;
   size?: "sm" | "md" | "lg";
+  variant?: "square" | "landscape";
   onClick?: (index: number) => void;
   className?: string;
 }
@@ -16,14 +17,25 @@ export function PhotoThumbnail({
   isClickable = true,
   showPlaceholder = true,
   size = "md",
+  variant = "square",
   onClick,
   className = "",
 }: PhotoThumbnailProps) {
-  const sizeClasses = {
+  // Size classes for square variant
+  const squareSizeClasses = {
     sm: "w-12 h-12",
     md: "w-16 h-16",
     lg: "w-20 h-20",
   };
+
+  // Size classes for landscape variant (16:9 ratio)
+  const landscapeSizeClasses = {
+    sm: "w-16 h-9",
+    md: "w-20 h-11",
+    lg: "w-24 h-14",
+  };
+
+  const sizeClasses = variant === "landscape" ? landscapeSizeClasses : squareSizeClasses;
 
   const activeClass = isActive
     ? "border-primary ring-2 ring-primary ring-offset-2"

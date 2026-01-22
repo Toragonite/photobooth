@@ -7,7 +7,14 @@
     "title": "4-Cut Photo",
     "subtitle": "Create memories with 4 photos",
     "startButton": "Start",
-    "languageToggle": "한국어"
+    "languageToggle": "한국어",
+    "selectLayout": "Select Layout",
+    "layout": {
+      "strip": "Strip (1x4)",
+      "stripDesc": "Two vertical strips",
+      "grid": "Grid (2x2)",
+      "gridDesc": "Classic 4-cut layout"
+    }
   },
   "camera": {
     "title": "Take Photos",

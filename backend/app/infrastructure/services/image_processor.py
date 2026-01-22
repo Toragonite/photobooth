@@ -9,7 +9,7 @@ import aiofiles
 from PIL import Image, ImageDraw, ImageFont
 
 from ...application.ports.services.image_processor_port import (
-    CompositeOptions, CompositeResult, FrameType, ImageProcessorPort)
+    CompositeOptions, CompositeResult, FrameType, ImageProcessorPort, LayoutType)
 from ...config import get_settings
 
 settings = get_settings()
@@ -106,6 +106,53 @@ class ImageProcessor(ImageProcessorPort):
             (padding + photo_width + photo_gap, padding + photo_height + photo_gap),  # Bottom-right
         ]
 
+    def _calculate_1x4_dimensions(self, frame_config: dict) -> Tuple[int, int]:
+        """Calculate photo dimensions for 1x4 strip layout (two strips side-by-side).
+
+        Each strip contains 4 landscape photos stacked vertically.
+        Photos should be wider than tall to look good in this layout.
+        """
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+        bottom_margin = frame_config["bottom_margin"]
+        strip_gap = 24  # Gap between two strips
+
+        # Two strips side by side
+        available_width = self.COMPOSITE_WIDTH - (2 * padding) - strip_gap
+        strip_width = available_width // 2
+        photo_width = strip_width - 8  # Small inner margin
+
+        # Four photos stacked vertically
+        available_height = self.COMPOSITE_HEIGHT - (2 * padding) - (3 * photo_gap) - bottom_margin
+        photo_height = available_height // 4
+
+        return photo_width, photo_height
+
+    def _calculate_1x4_positions(
+        self, frame_config: dict, photo_width: int, photo_height: int
+    ) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """Calculate positions for 1x4 layout (returns left and right positions for each photo).
+
+        Returns list of tuples: [(left_pos, right_pos), ...]
+        """
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+        strip_gap = 24
+
+        available_width = self.COMPOSITE_WIDTH - (2 * padding) - strip_gap
+        strip_width = available_width // 2
+
+        # Center photos within each strip
+        left_x = padding + (strip_width - photo_width) // 2
+        right_x = padding + strip_width + strip_gap + (strip_width - photo_width) // 2
+
+        positions = []
+        for i in range(4):
+            y = padding + i * (photo_height + photo_gap)
+            positions.append(((left_x, y), (right_x, y)))
+
+        return positions
+
     def create_thumbnail(self, image_data: bytes) -> Tuple[bytes, int, int]:
         """Create a thumbnail from image data.
 
@@ -166,6 +213,7 @@ class ImageProcessor(ImageProcessorPort):
         include_logo: bool = False,
         date_text: Optional[str] = None,
         frame_type: FrameType = FrameType.CLASSIC,
+        layout_type: LayoutType = LayoutType.GRID_2X2,
     ) -> bytes:
         """Create a 4-cut composite image.
 
@@ -175,6 +223,7 @@ class ImageProcessor(ImageProcessorPort):
             include_logo: Whether to add logo (not implemented yet)
             date_text: Custom date text, defaults to current date
             frame_type: Frame template to use
+            layout_type: Layout arrangement (2x2 grid or 1x4 strip)
 
         Returns:
             Composite image as JPEG bytes
@@ -182,6 +231,25 @@ class ImageProcessor(ImageProcessorPort):
         if len(photos) != 4:
             raise ValueError(f"Expected 4 photos, got {len(photos)}")
 
+        # Route to appropriate layout generator
+        if layout_type == LayoutType.STRIP_1X4:
+            return self._create_1x4_composite(
+                photos, include_date, include_logo, date_text, frame_type
+            )
+        else:
+            return self._create_2x2_composite(
+                photos, include_date, include_logo, date_text, frame_type
+            )
+
+    def _create_2x2_composite(
+        self,
+        photos: List[bytes],
+        include_date: bool,
+        include_logo: bool,
+        date_text: Optional[str],
+        frame_type: FrameType,
+    ) -> bytes:
+        """Create a 2x2 grid composite image (original layout)."""
         # Get frame configuration
         frame_config = self._get_frame_config(frame_type)
         photo_width, photo_height = self._calculate_photo_dimensions(frame_config)
@@ -233,8 +301,107 @@ class ImageProcessor(ImageProcessorPort):
         composite.save(output, format="JPEG", quality=self.composite_quality)
         output.seek(0)
 
-        logger.info(f"Created composite image with frame type: {frame_type.value}")
+        logger.info(f"Created 2x2 composite image with frame type: {frame_type.value}")
         return output.getvalue()
+
+    def _create_1x4_composite(
+        self,
+        photos: List[bytes],
+        include_date: bool,
+        include_logo: bool,
+        date_text: Optional[str],
+        frame_type: FrameType,
+    ) -> bytes:
+        """Create a 1x4 strip composite image (two identical strips side-by-side)."""
+        # Get frame configuration
+        frame_config = self._get_frame_config(frame_type)
+        photo_width, photo_height = self._calculate_1x4_dimensions(frame_config)
+        positions = self._calculate_1x4_positions(frame_config, photo_width, photo_height)
+
+        # Create canvas with frame background color
+        bg_color = frame_config["background_color"]
+        composite = Image.new(
+            "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
+        )
+
+        # Place each photo on both left and right strips (duplicated)
+        corner_radius = frame_config["corner_radius"]
+        for i, photo_data in enumerate(photos):
+            try:
+                photo = Image.open(io.BytesIO(photo_data))
+                # Resize and crop to fit (landscape orientation)
+                photo = self._resize_and_crop(photo, (photo_width, photo_height))
+
+                # Apply rounded corners if needed
+                if corner_radius > 0:
+                    photo = self._apply_rounded_corners(photo, corner_radius)
+                    mask = photo if photo.mode == "RGBA" else None
+                    # Place on left strip
+                    composite.paste(photo, positions[i][0], mask)
+                    # Place on right strip (duplicate)
+                    composite.paste(photo, positions[i][1], mask)
+                else:
+                    # Place on left strip
+                    composite.paste(photo, positions[i][0])
+                    # Place on right strip (duplicate)
+                    composite.paste(photo, positions[i][1])
+            except Exception as e:
+                logger.error(f"Failed to process photo {i}: {e}")
+                raise
+
+        # Add date stamp (centered at bottom)
+        if include_date:
+            date_text = date_text or datetime.now().strftime("%Y.%m.%d")
+            text_color = "#FFFFFF" if frame_type == FrameType.FILM_STRIP else "#333333"
+            shadow_color = "#000000" if frame_type == FrameType.FILM_STRIP else "#888888"
+            self._add_date_stamp_1x4(composite, date_text, frame_config, text_color, shadow_color)
+
+        # Save to bytes
+        output = io.BytesIO()
+        composite.save(output, format="JPEG", quality=self.composite_quality)
+        output.seek(0)
+
+        logger.info(f"Created 1x4 composite image with frame type: {frame_type.value}")
+        return output.getvalue()
+
+    def _add_date_stamp_1x4(
+        self,
+        img: Image.Image,
+        date_text: str,
+        frame_config: dict,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+    ) -> None:
+        """Add date stamp to bottom of 1x4 composite image."""
+        draw = ImageDraw.Draw(img)
+
+        # Try to use a nice font, fall back to default
+        try:
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28
+            )
+        except OSError:
+            try:
+                font = ImageFont.truetype("arial.ttf", 28)
+            except OSError:
+                font = ImageFont.load_default()
+
+        # Calculate position (center bottom)
+        bbox = draw.textbbox((0, 0), date_text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (self.COMPOSITE_WIDTH - text_width) // 2
+
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+        photo_width, photo_height = self._calculate_1x4_dimensions(frame_config)
+        photos_bottom = padding + (4 * photo_height) + (3 * photo_gap)
+        bottom_margin = frame_config["bottom_margin"]
+        y = photos_bottom + (bottom_margin - text_height) // 2
+
+        # Draw text with slight shadow for readability
+        draw.text((x + 1, y + 1), date_text, font=font, fill=shadow_color)
+        draw.text((x, y), date_text, font=font, fill=text_color)
 
     def _add_film_holes(self, img: Image.Image) -> None:
         """Add film strip sprocket holes to the edges."""
@@ -384,6 +551,7 @@ class ImageProcessor(ImageProcessorPort):
                 include_date=opts.include_date,
                 include_logo=opts.include_logo,
                 frame_type=opts.frame_type,
+                layout_type=opts.layout_type,
             )
 
             # Write to output path

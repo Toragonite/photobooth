@@ -6,7 +6,7 @@ import aiofiles
 
 from app.application.ports.repositories import SessionRepository
 from app.application.ports.services import StoragePort
-from app.application.ports.services.image_processor_port import FrameType
+from app.application.ports.services.image_processor_port import FrameType, LayoutType
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import SessionId
 from app.infrastructure.services.image_processor import ImageProcessor
@@ -19,6 +19,7 @@ class GenerateCompositeInput:
     include_date: bool = True
     include_logo: bool = True
     frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
+    layout_type: str = "2x2"  # 2x2 (grid) or 1x4 (vertical strip duplicated)
 
 
 @dataclass
@@ -71,6 +72,12 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
             except ValueError:
                 frame_type = FrameType.CLASSIC
 
+            # Parse layout type
+            try:
+                layout_type = LayoutType(input_data.layout_type)
+            except ValueError:
+                layout_type = LayoutType.GRID_2X2
+
             # Create composite using ImageProcessor
             image_processor = ImageProcessor()
             composite_data = image_processor.create_composite(
@@ -78,6 +85,7 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 include_date=input_data.include_date,
                 include_logo=input_data.include_logo,
                 frame_type=frame_type,
+                layout_type=layout_type,
             )
 
             # Save composite using storage service

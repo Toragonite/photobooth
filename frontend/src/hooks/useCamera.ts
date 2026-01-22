@@ -5,11 +5,13 @@ import {
   applyEnhancement,
   hasEnhancement,
 } from "../utils/imageEnhancement";
+import { LayoutType, LAYOUT_CONFIGS } from "../types/layout";
 
 interface UseCameraOptions {
   facingMode?: "user" | "environment";
   width?: number;
   height?: number;
+  layoutType?: LayoutType;
 }
 
 interface UseCameraReturn {
@@ -25,7 +27,12 @@ interface UseCameraReturn {
 }
 
 export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
-  const { facingMode = "user", width = 1280, height = 960 } = options;
+  const { facingMode = "user", layoutType = "2x2" } = options;
+
+  // Get resolution based on layout type
+  const layoutConfig = LAYOUT_CONFIGS[layoutType];
+  const width = options.width ?? layoutConfig.resolution.width;
+  const height = options.height ?? layoutConfig.resolution.height;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
