@@ -66,6 +66,22 @@ class ImageProcessor(ImageProcessorPort):
             "has_film_holes": False,
             "background_color": "#FFFFFF",
         },
+        FrameType.RWANDA_DIAGONAL: {
+            "padding": 30,
+            "photo_gap": 20,
+            "bottom_margin": 100,
+            "corner_radius": 12,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "is_diagonal_gradient": True,
+        },
+    }
+
+    # Rwanda flag colors
+    RWANDA_COLORS = {
+        "blue": "#00A1DE",
+        "yellow": "#FAD201",
+        "green": "#20603D",
     }
 
     def __init__(self):
@@ -261,6 +277,14 @@ class ImageProcessor(ImageProcessorPort):
             "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
         )
 
+        # Apply diagonal gradient background for Rwanda style
+        if frame_config.get("is_diagonal_gradient"):
+            try:
+                self._draw_rwanda_diagonal_background_fast(composite)
+            except ImportError:
+                # Fallback if numpy not available
+                self._draw_rwanda_diagonal_background(composite)
+
         # Add film strip holes if applicable
         if frame_config["has_film_holes"]:
             self._add_film_holes(composite)
@@ -287,8 +311,13 @@ class ImageProcessor(ImageProcessorPort):
         # Add date stamp
         if include_date:
             date_text = date_text or datetime.now().strftime("%Y.%m.%d")
-            text_color = "#FFFFFF" if frame_type == FrameType.FILM_STRIP else "#333333"
-            shadow_color = "#000000" if frame_type == FrameType.FILM_STRIP else "#888888"
+            # White text for dark backgrounds
+            if frame_type in (FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL):
+                text_color = "#FFFFFF"
+                shadow_color = "#000000"
+            else:
+                text_color = "#333333"
+                shadow_color = "#888888"
             self._add_date_stamp(composite, date_text, frame_config, text_color, shadow_color)
 
         # Add logo (placeholder for future implementation)
@@ -324,6 +353,14 @@ class ImageProcessor(ImageProcessorPort):
             "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
         )
 
+        # Apply diagonal gradient background for Rwanda style
+        if frame_config.get("is_diagonal_gradient"):
+            try:
+                self._draw_rwanda_diagonal_background_fast(composite)
+            except ImportError:
+                # Fallback if numpy not available
+                self._draw_rwanda_diagonal_background(composite)
+
         # Place each photo on both left and right strips (duplicated)
         corner_radius = frame_config["corner_radius"]
         for i, photo_data in enumerate(photos):
@@ -352,8 +389,13 @@ class ImageProcessor(ImageProcessorPort):
         # Add date stamp (centered at bottom)
         if include_date:
             date_text = date_text or datetime.now().strftime("%Y.%m.%d")
-            text_color = "#FFFFFF" if frame_type == FrameType.FILM_STRIP else "#333333"
-            shadow_color = "#000000" if frame_type == FrameType.FILM_STRIP else "#888888"
+            # White text for dark backgrounds
+            if frame_type in (FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL):
+                text_color = "#FFFFFF"
+                shadow_color = "#000000"
+            else:
+                text_color = "#333333"
+                shadow_color = "#888888"
             self._add_date_stamp_1x4(composite, date_text, frame_config, text_color, shadow_color)
 
         # Save to bytes
@@ -402,6 +444,86 @@ class ImageProcessor(ImageProcessorPort):
         # Draw text with slight shadow for readability
         draw.text((x + 1, y + 1), date_text, font=font, fill=shadow_color)
         draw.text((x, y), date_text, font=font, fill=text_color)
+
+    def _draw_rwanda_diagonal_background(self, img: Image.Image) -> None:
+        """Draw Rwanda flag diagonal gradient background.
+
+        Creates a diagonal gradient from top-left to bottom-right
+        with blue -> yellow -> green bands.
+        """
+        width, height = img.size
+        draw = ImageDraw.Draw(img)
+
+        # Rwanda colors
+        blue = (0, 161, 222)    # #00A1DE
+        yellow = (250, 210, 1)  # #FAD201
+        green = (32, 96, 61)    # #20603D
+
+        # Diagonal bands - from top-left to bottom-right
+        # Total diagonal distance
+        total_diag = width + height
+
+        # Define band positions (as fraction of diagonal)
+        # Blue: 0-35%, Yellow: 35-50%, Green: 50-100%
+        blue_end = 0.35
+        yellow_end = 0.50
+
+        for y in range(height):
+            for x in range(width):
+                # Calculate position along diagonal (0 to 1)
+                diag_pos = (x + y) / total_diag
+
+                if diag_pos < blue_end:
+                    # Blue zone with slight gradient
+                    color = blue
+                elif diag_pos < yellow_end:
+                    # Yellow zone (narrow band like the sun ray)
+                    color = yellow
+                else:
+                    # Green zone
+                    color = green
+
+                draw.point((x, y), fill=color)
+
+    def _draw_rwanda_diagonal_background_fast(self, img: Image.Image) -> None:
+        """Draw Rwanda flag diagonal gradient background (optimized version).
+
+        Uses numpy-like approach with PIL for better performance.
+        """
+        import numpy as np
+
+        width, height = img.size
+
+        # Rwanda colors
+        blue = np.array([0, 161, 222], dtype=np.uint8)    # #00A1DE
+        yellow = np.array([250, 210, 1], dtype=np.uint8)  # #FAD201
+        green = np.array([32, 96, 61], dtype=np.uint8)    # #20603D
+
+        # Create coordinate grids
+        y_coords, x_coords = np.mgrid[0:height, 0:width]
+
+        # Calculate diagonal position (0 to 1)
+        total_diag = width + height
+        diag_pos = (x_coords + y_coords) / total_diag
+
+        # Create output array
+        output = np.zeros((height, width, 3), dtype=np.uint8)
+
+        # Blue zone: 0 - 0.35
+        blue_mask = diag_pos < 0.35
+        output[blue_mask] = blue
+
+        # Yellow zone: 0.35 - 0.50
+        yellow_mask = (diag_pos >= 0.35) & (diag_pos < 0.50)
+        output[yellow_mask] = yellow
+
+        # Green zone: 0.50 - 1.0
+        green_mask = diag_pos >= 0.50
+        output[green_mask] = green
+
+        # Convert numpy array to PIL image and paste
+        gradient_img = Image.fromarray(output, mode='RGB')
+        img.paste(gradient_img)
 
     def _add_film_holes(self, img: Image.Image) -> None:
         """Add film strip sprocket holes to the edges."""

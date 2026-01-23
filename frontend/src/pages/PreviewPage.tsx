@@ -7,7 +7,7 @@ import { api } from "../services/api";
 import { LoadingSpinner, CopySelector } from "../components/common";
 
 // Frame type options
-type FrameType = "classic" | "film_strip" | "polaroid" | "minimal" | "rounded";
+type FrameType = "classic" | "film_strip" | "polaroid" | "minimal" | "rounded" | "rwanda_diagonal";
 
 interface FrameOption {
   id: FrameType;
@@ -21,6 +21,7 @@ const FRAME_OPTIONS: FrameOption[] = [
   { id: "polaroid", labelKey: "preview.frames.polaroid", icon: "📷" },
   { id: "minimal", labelKey: "preview.frames.minimal", icon: "⬜" },
   { id: "rounded", labelKey: "preview.frames.rounded", icon: "🔲" },
+  { id: "rwanda_diagonal", labelKey: "preview.frames.rwandaDiagonal", icon: "🇷🇼" },
 ];
 
 export function PreviewPage() {
