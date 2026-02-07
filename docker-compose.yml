@@ -12,6 +12,8 @@ services:
       - DATABASE_URL=sqlite+aiosqlite:///./data/photobooth.db
       - PRINTER_MOCK_MODE=${PRINTER_MOCK_MODE:-true}
       - PRINTER_NAME=${PRINTER_NAME:-SelphyCP1500}
+      - PRINTER_NAMES=${PRINTER_NAMES:-}
+      - PRINTER_SELECTION_STRATEGY=${PRINTER_SELECTION_STRATEGY:-least-busy}
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - ADMIN_PIN=${ADMIN_PIN:-1998}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

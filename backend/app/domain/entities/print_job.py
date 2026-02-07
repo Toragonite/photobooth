@@ -17,6 +17,7 @@ class PrintJob:
     status: PrintStatus
     copies: int
     cups_job_id: Optional[int] = None
+    printer_name: Optional[str] = None
     error_code: Optional[ErrorCode] = None
     error_message: Optional[str] = None
     retry_count: int = 0
@@ -39,6 +40,7 @@ class PrintJob:
         cls,
         session_id: SessionId,
         copies: int = 1,
+        printer_name: Optional[str] = None,
     ) -> "PrintJob":
         """Create a new print job."""
         return cls(
@@ -46,6 +48,7 @@ class PrintJob:
             session_id=session_id,
             status=PrintStatus.PENDING,
             copies=copies,
+            printer_name=printer_name,
         )
 
     def start_processing(self) -> None:

@@ -13,6 +13,7 @@ class PrintJobDTO:
     status: str
     copies: int
     progress: int
+    printer_name: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
     retry_count: int = 0

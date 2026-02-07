@@ -2,6 +2,7 @@
 
 import json
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from app.application.use_cases.print import SubmitPrintJobInput
 from app.infrastructure.database import SettingsModel, get_db
 from app.infrastructure.dependencies import (CancelPrintJobUseCaseDep,
                                              GetPrintStatusUseCaseDep,
+                                             PrinterServiceDep,
                                              RetryPrintJobUseCaseDep,
                                              SubmitPrintJobUseCaseDep)
 
@@ -26,6 +28,7 @@ class PrintJobRequest(BaseModel):
 
     session_id: str
     copies: int = 1
+    printer_name: Optional[str] = None
 
 
 class PrintJobResponse(BaseModel):
@@ -52,6 +55,7 @@ async def create_print_job(
         SubmitPrintJobInput(
             session_id=request.session_id,
             copies=request.copies,
+            printer_name=request.printer_name,
         )
     )
 
@@ -61,10 +65,38 @@ async def create_print_job(
             "session_id": data.session_id,
             "status": data.status,
             "copies": data.copies,
+            "printer_name": data.printer_name,
             "created_at": data.created_at.isoformat() if data.created_at else None,
         }
 
     return handle_result(result, transform=transform)
+
+
+@router.get("/printers")
+async def list_printers(
+    printer: PrinterServiceDep,
+):
+    """List all configured printers with their current status."""
+    statuses = await printer.get_all_printer_statuses()
+    return {
+        "success": True,
+        "data": {
+            "printers": [
+                {
+                    "name": s.name,
+                    "status": s.status,
+                    "connected": s.connected,
+                    "is_ready": s.is_ready,
+                    "paper_status": s.paper_status,
+                    "ink_status": s.ink_status,
+                    "queue_length": s.queue_length,
+                    "error_message": s.error_message,
+                }
+                for s in statuses
+            ],
+            "count": len(statuses),
+        },
+    }
 
 
 @router.get("/print/{job_id}", response_model=PrintJobResponse)

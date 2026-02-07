@@ -102,6 +102,7 @@ class PrintJobModel(Base):
     status = Column(String(20), nullable=False, default="pending")
     copies = Column(Integer, nullable=False, default=1)
     cups_job_id = Column(Integer, nullable=True)
+    printer_name = Column(String(100), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)

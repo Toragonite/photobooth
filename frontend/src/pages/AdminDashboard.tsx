@@ -2,7 +2,59 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { LoadingSpinner } from "../components/common";
-import { adminApi, SystemStatus } from "../services/adminApi";
+import { adminApi, SystemStatus, PrinterInfo } from "../services/adminApi";
+
+function PrinterStatusBadge({ status }: { status: string }) {
+  const colorMap: Record<string, string> = {
+    ready: "bg-secondary text-white",
+    processing: "bg-primary text-white",
+    printing: "bg-primary text-white",
+    error: "bg-error text-white",
+    offline: "bg-gray-400 text-white",
+  };
+  const cls = colorMap[status] || "bg-gray-300 text-text";
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+function PrinterCard({
+  printer,
+  onTestPrint,
+}: {
+  printer: PrinterInfo;
+  onTestPrint: (name: string) => Promise<void>;
+}) {
+  return (
+    <div className="border rounded-lg p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="font-medium">{printer.name}</span>
+        <PrinterStatusBadge status={printer.status} />
+      </div>
+      <div className="text-sm text-text-muted space-y-1">
+        <p>
+          Connected: {printer.connected ? "Yes" : "No"} | Queue:{" "}
+          {printer.queue_length}
+        </p>
+        <p>
+          Paper: {printer.paper_status} | Ink: {printer.ink_status}
+        </p>
+        {printer.error_message && (
+          <p className="text-error text-xs">{printer.error_message}</p>
+        )}
+      </div>
+      <button
+        onClick={() => onTestPrint(printer.name)}
+        disabled={!printer.connected}
+        className="btn-outline py-1 px-3 min-h-0 text-sm disabled:opacity-50"
+      >
+        Test Print
+      </button>
+    </div>
+  );
+}
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -50,11 +102,12 @@ export function AdminDashboard() {
     navigate("/admin");
   };
 
-  const handleTestPrint = async () => {
+  const handleTestPrint = async (printerName?: string) => {
     try {
-      const response = await adminApi.sendTestPrint("color_bars");
+      const response = await adminApi.sendTestPrint("color_bars", printerName);
       if (response.success) {
-        alert("Test print sent successfully!");
+        const target = response.data?.printer_name || printerName || "default";
+        alert(`Test print sent to '${target}'!`);
       } else {
         alert("Failed to send test print");
       }
@@ -71,6 +124,9 @@ export function AdminDashboard() {
       </div>
     );
   }
+
+  const printers = status?.printers || [];
+  const hasManyPrinters = printers.length > 1;
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -114,7 +170,9 @@ export function AdminDashboard() {
                 className={`w-4 h-4 rounded-full ${
                   status.overall_health === "healthy"
                     ? "bg-secondary"
-                    : "bg-error"
+                    : status.overall_health === "degraded"
+                      ? "bg-warning"
+                      : "bg-error"
                 }`}
               />
               <span className="text-lg capitalize">
@@ -123,24 +181,41 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          {/* Printer Status */}
-          <div className="card">
+          {/* Printer Status - Multi-printer or single */}
+          <div className={`card ${hasManyPrinters ? "md:col-span-2" : ""}`}>
             <h2 className="text-xl font-semibold mb-4">
               {t("admin.dashboard.printer")}
-            </h2>
-            <div className="space-y-2">
-              <p>
-                <span className="text-text-muted">Name:</span>{" "}
-                {status.printer.name}
-              </p>
-              <p>
-                <span className="text-text-muted">Status:</span>{" "}
-                {status.printer.status}
-              </p>
-              {status.printer.mock_mode && (
-                <p className="text-warning text-sm">Mock Mode Enabled</p>
+              {hasManyPrinters && (
+                <span className="text-sm font-normal text-text-muted ml-2">
+                  ({printers.length} printers)
+                </span>
               )}
-            </div>
+            </h2>
+            {printers.length > 0 ? (
+              <div className={`grid gap-3 ${hasManyPrinters ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+                {printers.map((p) => (
+                  <PrinterCard
+                    key={p.name}
+                    printer={p}
+                    onTestPrint={handleTestPrint}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  <span className="text-text-muted">Name:</span>{" "}
+                  {status.printer.name}
+                </p>
+                <p>
+                  <span className="text-text-muted">Status:</span>{" "}
+                  {status.printer.status}
+                </p>
+                {status.printer.mock_mode && (
+                  <p className="text-warning text-sm">Mock Mode Enabled</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Storage Status */}
@@ -205,12 +280,14 @@ export function AdminDashboard() {
               >
                 Refresh Status
               </button>
-              <button
-                onClick={handleTestPrint}
-                className="btn-outline py-2 px-4 min-h-0"
-              >
-                Test Print
-              </button>
+              {!hasManyPrinters && (
+                <button
+                  onClick={() => handleTestPrint()}
+                  className="btn-outline py-2 px-4 min-h-0"
+                >
+                  Test Print
+                </button>
+              )}
             </div>
           </div>
         </div>

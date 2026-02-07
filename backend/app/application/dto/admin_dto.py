@@ -23,6 +23,7 @@ class SystemStatusDTO:
     """Data transfer object for system status."""
     overall_health: str
     printer: Dict[str, Any] = field(default_factory=dict)
+    printers: List[Dict[str, Any]] = field(default_factory=list)
     storage: Dict[str, Any] = field(default_factory=dict)
     activity: Dict[str, Any] = field(default_factory=dict)
 

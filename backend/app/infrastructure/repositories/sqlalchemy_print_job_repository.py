@@ -27,6 +27,7 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             existing.status = job.status.value
             existing.copies = job.copies
             existing.cups_job_id = job.cups_job_id
+            existing.printer_name = job.printer_name
             existing.started_at = job.started_at
             existing.completed_at = job.completed_at
             existing.cancelled_at = job.cancelled_at
@@ -142,6 +143,7 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             status=job.status.value,
             copies=job.copies,
             cups_job_id=job.cups_job_id,
+            printer_name=job.printer_name,
             created_at=job.created_at,
             started_at=job.started_at,
             completed_at=job.completed_at,
@@ -168,6 +170,7 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             status=PrintStatus(model.status),
             copies=model.copies,
             cups_job_id=model.cups_job_id,
+            printer_name=model.printer_name,
             created_at=model.created_at,
             started_at=model.started_at,
             completed_at=model.completed_at,

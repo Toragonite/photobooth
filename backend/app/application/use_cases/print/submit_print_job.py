@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from app.application.dto.print_job_dto import PrintJobDTO
 from app.application.ports.repositories import (PrintJobRepository,
@@ -20,6 +21,7 @@ class SubmitPrintJobInput:
     """Input for submitting a print job."""
     session_id: str
     copies: int = 1
+    printer_name: Optional[str] = None
 
 
 class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
@@ -60,17 +62,32 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                 "INVALID_COPIES", "Copies must be between 1 and 10"
             )
 
-        # Check printer availability
-        if not await self._printer.is_ready():
-            return UseCaseResult.fail("PRINTER_OFFLINE", "Printer is not available")
+        # Select printer: use explicitly requested printer, or auto-select
+        target_printer = input_data.printer_name
+        if not target_printer:
+            target_printer = await self._printer.select_printer()
 
-        job = PrintJob.create(session_id=sid, copies=input_data.copies)
+        if not target_printer:
+            return UseCaseResult.fail("PRINTER_OFFLINE", "No printer available")
+
+        # Check selected printer is ready
+        if not await self._printer.is_ready(target_printer):
+            return UseCaseResult.fail(
+                "PRINTER_OFFLINE", f"Printer '{target_printer}' is not available"
+            )
+
+        job = PrintJob.create(
+            session_id=sid,
+            copies=input_data.copies,
+            printer_name=target_printer,
+        )
         await self._print_job_repo.save(job)
 
-        # Start print job in background with its own database session
-        # Pass only the job_id and composite_path to avoid session conflicts
+        # Start print job in background
         asyncio.create_task(
-            self._process_print_job_background(str(job.id), session.composite_path, input_data.copies)
+            self._process_print_job_background(
+                str(job.id), session.composite_path, input_data.copies, target_printer
+            )
         )
 
         return UseCaseResult.ok(
@@ -80,6 +97,7 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                 status=job.status.value,
                 copies=job.copies,
                 progress=job.progress_percent,
+                printer_name=job.printer_name,
                 error_code=job.error_code.value if job.error_code else None,
                 error_message=job.error_message,
                 retry_count=job.retry_count,
@@ -89,7 +107,7 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
         )
 
     async def _process_print_job_background(
-        self, job_id: str, composite_path: str, copies: int
+        self, job_id: str, composite_path: str, copies: int, printer_name: str
     ) -> None:
         """Process the print job in background with its own database session."""
         from app.infrastructure.database import async_session
@@ -106,21 +124,30 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                     return
 
                 file_path = composite_path
-                logger.info(f"Starting print job {job_id} for file: {file_path}")
+                logger.info(
+                    f"Starting print job {job_id} for file: {file_path} "
+                    f"on printer '{printer_name}'"
+                )
 
                 # Start processing
                 job.start_processing()
                 await repo.save(job)
                 await db.commit()
 
-                # Submit to printer
-                result = await self._printer.print_image(file_path, copies)
+                # Submit to selected printer
+                result = await self._printer.print_image(file_path, copies, printer_name)
 
                 if result.success and result.cups_job_id:
                     job.mark_printing(result.cups_job_id)
+                    # Update printer_name from actual result (in case of fallback)
+                    if result.printer_name:
+                        job.printer_name = result.printer_name
                     await repo.save(job)
                     await db.commit()
-                    logger.info(f"Print job {job_id} submitted to CUPS: {result.cups_job_id}")
+                    logger.info(
+                        f"Print job {job_id} submitted to CUPS: {result.cups_job_id} "
+                        f"on printer '{result.printer_name}'"
+                    )
 
                     # Monitor print job completion
                     await self._monitor_print_job_background(job_id, result.cups_job_id)

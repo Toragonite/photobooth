@@ -37,10 +37,17 @@ class Settings(BaseSettings):
 
     # Printer
     printer_mock_mode: bool = True  # Use mock printer for development
-    printer_name: str = "SelphyCP1500"
+    printer_name: str = "SelphyCP1500"  # Primary printer (backward compat)
+    printer_names: List[str] = []  # Multiple printers; if empty, falls back to printer_name
+    printer_selection_strategy: Literal["round-robin", "least-busy", "failover"] = "least-busy"
     print_timeout_seconds: int = 120
     max_retry_count: int = 3
     retry_delays: List[int] = [3, 5, 8]  # Seconds between retries
+
+    @property
+    def active_printer_names(self) -> List[str]:
+        """Get list of active printer names. Falls back to single printer_name."""
+        return self.printer_names if self.printer_names else [self.printer_name]
 
     # Security
     secret_key: str = "change-me-in-production-very-secret-key"

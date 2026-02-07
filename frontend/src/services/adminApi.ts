@@ -18,6 +18,17 @@ export interface AdminLoginResponse {
   expires_at: string;
 }
 
+export interface PrinterInfo {
+  name: string;
+  status: string;
+  connected: boolean;
+  is_ready: boolean;
+  paper_status: string;
+  ink_status: string;
+  queue_length: number;
+  error_message: string | null;
+}
+
 export interface SystemStatus {
   overall_health: string;
   timestamp: string;
@@ -29,6 +40,7 @@ export interface SystemStatus {
     mock_mode: boolean;
     queue_count?: number;
   };
+  printers: PrinterInfo[];
   storage: {
     total_bytes: number;
     used_bytes: number;
@@ -337,10 +349,13 @@ class AdminApiClient {
 
   async sendTestPrint(
     patternType: string = "color_bars",
-  ): Promise<ApiResponse<{ job_id: string; message: string }>> {
+    printerName?: string,
+  ): Promise<ApiResponse<{ job_id: string; printer_name?: string; message: string }>> {
+    const body: Record<string, string> = { pattern_type: patternType };
+    if (printerName) body.printer_name = printerName;
     return this.request("/test-print", {
       method: "POST",
-      body: JSON.stringify({ pattern_type: patternType }),
+      body: JSON.stringify(body),
     });
   }
 

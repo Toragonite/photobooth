@@ -64,6 +64,7 @@ class TestPrintRequest(BaseModel):
 
     pattern: Optional[str] = None
     pattern_type: Optional[str] = None  # Alias for backward compat
+    printer_name: Optional[str] = None
 
 
 class RebootSystemRequest(BaseModel):
@@ -395,10 +396,12 @@ async def test_print(
     """
     # Handle request body - prefer 'pattern' over 'pattern_type'
     pattern = "full"
+    printer_name = None
     if request:
         pattern = request.pattern or request.pattern_type or "full"
+        printer_name = request.printer_name
 
-    input_data = TestPrintInput(pattern_type=pattern)
+    input_data = TestPrintInput(pattern_type=pattern, printer_name=printer_name)
     result = await use_case.execute(input_data)
     return handle_result(result)
 

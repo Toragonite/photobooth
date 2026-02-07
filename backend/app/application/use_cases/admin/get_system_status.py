@@ -25,8 +25,8 @@ class GetSystemStatusUseCase(UseCase[SystemStatusDTO]):
 
     async def execute(self) -> UseCaseResult[SystemStatusDTO]:
         try:
-            # Get printer status
-            printer_status = await self._printer.get_printer_status()
+            # Get all printer statuses
+            all_printer_statuses = await self._printer.get_all_printer_statuses()
 
             # Get storage info
             storage_info = await self._storage.get_storage_info()
@@ -39,24 +39,47 @@ class GetSystemStatusUseCase(UseCase[SystemStatusDTO]):
             failed_count = await self._print_job_repo.count_by_status(PrintStatus.FAILED)
             pending_count = await self._print_job_repo.count_by_status(PrintStatus.PENDING)
 
-            # Determine overall health
+            # Determine overall health based on all printers
+            any_ready = any(ps.is_ready for ps in all_printer_statuses)
+            any_connected = any(ps.connected for ps in all_printer_statuses)
+
             overall_health = "healthy"
-            if not printer_status.is_ready or storage_info.is_critical:
+            if not any_ready or storage_info.is_critical:
                 overall_health = "degraded"
-            if not printer_status.connected:
+            if not any_connected:
                 overall_health = "critical"
+
+            # Build printers list for response
+            printers_data = [
+                {
+                    "name": ps.name,
+                    "status": ps.status,
+                    "connected": ps.connected,
+                    "is_ready": ps.is_ready,
+                    "paper_status": ps.paper_status,
+                    "ink_status": ps.ink_status,
+                    "queue_length": ps.queue_length,
+                    "error_message": ps.error_message,
+                }
+                for ps in all_printer_statuses
+            ]
+
+            # Backward-compatible 'printer' field (primary printer)
+            primary_status = all_printer_statuses[0] if all_printer_statuses else None
+            printer_compat = {
+                "name": primary_status.name if primary_status else "No printer",
+                "status": primary_status.status if primary_status else "offline",
+                "connected": primary_status.connected if primary_status else False,
+                "paper_status": primary_status.paper_status if primary_status else "unknown",
+                "ink_status": primary_status.ink_status if primary_status else "unknown",
+                "queue_length": primary_status.queue_length if primary_status else 0,
+            }
 
             return UseCaseResult.ok(
                 SystemStatusDTO(
                     overall_health=overall_health,
-                    printer={
-                        "name": "Canon Selphy CP1500",
-                        "status": printer_status.status,
-                        "connected": printer_status.connected,
-                        "paper_status": printer_status.paper_status,
-                        "ink_status": printer_status.ink_status,
-                        "queue_length": printer_status.queue_length,
-                    },
+                    printer=printer_compat,
+                    printers=printers_data,
                     storage={
                         "total_bytes": storage_info.total_bytes,
                         "used_bytes": storage_info.used_bytes,
