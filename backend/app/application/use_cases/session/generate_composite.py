@@ -6,7 +6,9 @@ import aiofiles
 
 from app.application.ports.repositories import SessionRepository
 from app.application.ports.services import StoragePort
-from app.application.ports.services.image_processor_port import FrameType, LayoutType
+from app.application.ports.services.image_processor_port import (
+    FrameType, LayoutType, LAYOUT_PHOTO_COUNTS
+)
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.value_objects import SessionId
 from app.infrastructure.services.image_processor import ImageProcessor
@@ -31,7 +33,7 @@ class CompositeOutput:
 
 
 class GenerateCompositeUseCase(UseCase[CompositeOutput]):
-    """Use case for generating a 4-cut composite image."""
+    """Use case for generating a composite image (1x1, 2x2, or 1x4 layout)."""
 
     def __init__(
         self,
@@ -53,13 +55,23 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
         if not session:
             return UseCaseResult.fail("SESSION_NOT_FOUND", "Session not found")
 
-        if session.photo_count < 4:
+        # Parse layout type first to determine required photo count
+        try:
+            layout_type = LayoutType(input_data.layout_type)
+        except ValueError:
+            layout_type = LayoutType.GRID_2X2
+
+        # Validate photo count based on layout
+        required_photos = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
+        if session.photo_count < required_photos:
             return UseCaseResult.fail(
-                "INCOMPLETE_SESSION", "Need 4 photos to generate composite"
+                "INCOMPLETE_SESSION",
+                f"Need {required_photos} photo(s) for {layout_type.value} layout"
             )
 
-        # Get photo paths sorted by index
-        photo_paths = [p.file_path for p in sorted(session.photos, key=lambda p: p.index)]
+        # Get photo paths sorted by index (limit to required count)
+        sorted_photos = sorted(session.photos, key=lambda p: p.index)[:required_photos]
+        photo_paths = [p.file_path for p in sorted_photos]
 
         try:
             # Read all photos
@@ -73,12 +85,6 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 frame_type = FrameType(input_data.frame_type)
             except ValueError:
                 frame_type = FrameType.CLASSIC
-
-            # Parse layout type
-            try:
-                layout_type = LayoutType(input_data.layout_type)
-            except ValueError:
-                layout_type = LayoutType.GRID_2X2
 
             # Create composite using ImageProcessor
             image_processor = ImageProcessor()

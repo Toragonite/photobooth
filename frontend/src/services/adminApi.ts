@@ -494,6 +494,106 @@ class AdminApiClient {
   getExportDownloadUrl(jobId: string): string {
     return `${API_BASE}/export/${jobId}/download`;
   }
+
+  // =============================================================================
+  // Mobile Upload Methods
+  // =============================================================================
+
+  async createUploadSession(
+    layoutType: string,
+    language: string = "ko"
+  ): Promise<
+    ApiResponse<{
+      session_id: string;
+      layout_type: string;
+      required_photos: number;
+    }>
+  > {
+    return this.request("/upload/session", {
+      method: "POST",
+      body: JSON.stringify({ layout_type: layoutType, language }),
+    });
+  }
+
+  async uploadPhoto(
+    sessionId: string,
+    index: number,
+    file: File
+  ): Promise<
+    ApiResponse<{
+      photo_id: string;
+      index: number;
+      thumbnail_url: string;
+    }>
+  > {
+    const formData = new FormData();
+    formData.append("photo", file);
+    formData.append("index", String(index));
+
+    const response = await fetch(`${API_BASE}/upload/session/${sessionId}/photos`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+      }
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: {
+          code: "UPLOAD_FAILED",
+          message: errorData.detail || `HTTP ${response.status}`,
+        },
+      };
+    }
+
+    return response.json();
+  }
+
+  async generateUploadComposite(
+    sessionId: string,
+    options: {
+      frame_type: string;
+      include_date: boolean;
+      include_logo: boolean;
+      include_custom_text: boolean;
+      custom_text?: string;
+      layout_type: string;
+    }
+  ): Promise<
+    ApiResponse<{
+      composite_path: string;
+      composite_url: string;
+    }>
+  > {
+    const { layout_type, ...bodyOptions } = options;
+    return this.request(
+      `/upload/session/${sessionId}/composite?layout_type=${layout_type}`,
+      {
+        method: "POST",
+        body: JSON.stringify(bodyOptions),
+      }
+    );
+  }
+
+  async printUploadSession(
+    sessionId: string,
+    copies: number = 1
+  ): Promise<
+    ApiResponse<{
+      job_id: string;
+      status: string;
+      copies: number;
+    }>
+  > {
+    return this.request(`/upload/session/${sessionId}/print`, {
+      method: "POST",
+      body: JSON.stringify({ copies }),
+    });
+  }
 }
 
 export const adminApi = new AdminApiClient();

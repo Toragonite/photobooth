@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import and_, func, select
@@ -985,4 +985,235 @@ async def download_export(
         job.download_path,
         media_type="application/zip",
         filename=os.path.basename(job.download_path),
+    )
+
+
+# =============================================================================
+# Mobile Upload API Endpoints
+# =============================================================================
+
+
+class CreateUploadSessionRequest(BaseModel):
+    """Request to create an upload session."""
+    layout_type: str = "2x2"  # 1x1, 2x2, or 1x4
+    language: str = "ko"
+
+
+class GenerateUploadCompositeRequest(BaseModel):
+    """Request to generate composite from uploaded photos."""
+    frame_type: str = "classic"
+    include_date: bool = True
+    include_logo: bool = False
+    include_custom_text: bool = True
+    custom_text: Optional[str] = None
+
+
+class PrintUploadRequest(BaseModel):
+    """Request to print uploaded session."""
+    copies: int = 1
+
+
+@router.post("/upload/session", response_model=AdminResponse)
+async def create_upload_session(
+    request: CreateUploadSessionRequest,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new session for mobile photo upload.
+
+    Args:
+        request: Session creation parameters including layout_type
+    """
+    from app.application.ports.services.image_processor_port import (
+        LAYOUT_PHOTO_COUNTS, LayoutType
+    )
+
+    # Validate layout type
+    try:
+        layout_type = LayoutType(request.layout_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid layout_type. Must be one of: 1x1, 2x2, 1x4"
+        )
+
+    # Get required photo count
+    required_photos = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
+
+    # Create session using existing use case
+    from app.application.use_cases.session import CreateSessionInput, CreateSessionUseCase
+    from app.infrastructure.repositories import SQLAlchemySessionRepository
+
+    session_repo = SQLAlchemySessionRepository(db)
+    use_case = CreateSessionUseCase(session_repo)
+
+    result = await use_case.execute(CreateSessionInput(language=request.language))
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.error_message)
+
+    return AdminResponse(
+        success=True,
+        data={
+            "session_id": result.data.session_id,
+            "layout_type": request.layout_type,
+            "required_photos": required_photos,
+            "language": request.language,
+        },
+    )
+
+
+@router.post("/upload/session/{session_id}/photos", response_model=AdminResponse)
+async def upload_photo(
+    session_id: str,
+    photo: UploadFile = File(...),
+    index: int = Form(...),
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a photo for mobile upload session.
+
+    Args:
+        session_id: Session ID
+        photo: Photo file (multipart/form-data)
+        index: Photo index (0-based)
+    """
+    from app.application.use_cases.session import CapturePhotoInput, CapturePhotoUseCase
+    from app.infrastructure.repositories import SQLAlchemySessionRepository
+    from app.infrastructure.services import ImageProcessor, StorageService
+
+    # Read photo data
+    image_data = await photo.read()
+
+    # Create use case with dependencies
+    session_repo = SQLAlchemySessionRepository(db)
+    storage = StorageService()
+    image_processor = ImageProcessor()
+
+    use_case = CapturePhotoUseCase(
+        session_repository=session_repo,
+        storage=storage,
+        image_processor=image_processor,
+    )
+
+    result = await use_case.execute(
+        CapturePhotoInput(
+            session_id=session_id,
+            photo_index=index,
+            image_data=image_data,
+        )
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.error_message)
+
+    return AdminResponse(
+        success=True,
+        data={
+            "photo_id": result.data.photo_id,
+            "index": result.data.index,
+            "thumbnail_url": f"/api/photos/{session_id}/{index}/thumbnail",
+        },
+    )
+
+
+@router.post("/upload/session/{session_id}/composite", response_model=AdminResponse)
+async def generate_upload_composite(
+    session_id: str,
+    request: GenerateUploadCompositeRequest,
+    layout_type: str = "2x2",
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate composite image from uploaded photos.
+
+    Args:
+        session_id: Session ID
+        request: Composite generation options
+        layout_type: Layout type (query parameter)
+    """
+    from app.application.use_cases.session import (
+        GenerateCompositeInput, GenerateCompositeUseCase
+    )
+    from app.infrastructure.repositories import SQLAlchemySessionRepository
+    from app.infrastructure.services import StorageService
+
+    session_repo = SQLAlchemySessionRepository(db)
+    storage = StorageService()
+
+    use_case = GenerateCompositeUseCase(
+        session_repository=session_repo,
+        storage=storage,
+    )
+
+    result = await use_case.execute(
+        GenerateCompositeInput(
+            session_id=session_id,
+            include_date=request.include_date,
+            include_logo=request.include_logo,
+            include_custom_text=request.include_custom_text,
+            custom_text=request.custom_text or "2026 Somang Youth\nRwanda missionary",
+            frame_type=request.frame_type,
+            layout_type=layout_type,
+        )
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.error_message)
+
+    return AdminResponse(
+        success=True,
+        data={
+            "composite_path": result.data.composite_path,
+            "composite_url": f"/api/composite/{session_id}",
+        },
+    )
+
+
+@router.post("/upload/session/{session_id}/print", response_model=AdminResponse)
+async def print_upload_session(
+    session_id: str,
+    request: PrintUploadRequest,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit print job for uploaded session.
+
+    Args:
+        session_id: Session ID
+        request: Print options including copies
+    """
+    from app.application.use_cases.print import SubmitPrintJobInput, SubmitPrintJobUseCase
+    from app.infrastructure.repositories import (
+        SQLAlchemyPrintJobRepository, SQLAlchemySessionRepository
+    )
+    from app.infrastructure.services import PrinterService
+
+    session_repo = SQLAlchemySessionRepository(db)
+    job_repo = SQLAlchemyPrintJobRepository(db)
+    printer = PrinterService()
+
+    use_case = SubmitPrintJobUseCase(
+        session_repository=session_repo,
+        print_job_repository=job_repo,
+        printer=printer,
+    )
+
+    result = await use_case.execute(
+        SubmitPrintJobInput(
+            session_id=session_id,
+            copies=request.copies,
+        )
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.error_message)
+
+    return AdminResponse(
+        success=True,
+        data={
+            "job_id": result.data.job_id,
+            "status": result.data.status,
+            "copies": request.copies,
+        },
     )

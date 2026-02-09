@@ -293,30 +293,38 @@ class ImageProcessor(ImageProcessorPort):
         include_custom_text: bool = True,
         custom_text: Optional[str] = None,
     ) -> bytes:
-        """Create a 4-cut composite image.
+        """Create a composite image.
 
         Args:
-            photos: List of 4 photo image bytes
+            photos: List of photo image bytes (1 for 1x1, 4 for 2x2/1x4)
             include_date: Whether to add date stamp
             include_logo: Whether to add logo (not implemented yet)
             date_text: Custom date text, defaults to current date
             frame_type: Frame template to use
-            layout_type: Layout arrangement (2x2 grid or 1x4 strip)
+            layout_type: Layout arrangement (1x1 single, 2x2 grid, or 1x4 strip)
             include_custom_text: Whether to add custom text (e.g., "2026 Somang Youth")
             custom_text: Custom text to display, defaults to mission text
 
         Returns:
             Composite image as JPEG bytes
         """
-        if len(photos) != 4:
-            raise ValueError(f"Expected 4 photos, got {len(photos)}")
+        # Validate photo count based on layout
+        from ...application.ports.services.image_processor_port import LAYOUT_PHOTO_COUNTS
+        expected_count = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
+        if len(photos) != expected_count:
+            raise ValueError(f"Expected {expected_count} photos for {layout_type.value} layout, got {len(photos)}")
 
         # Default custom text
         if custom_text is None:
             custom_text = "2026 Somang Youth\nRwanda missionary"
 
         # Route to appropriate layout generator
-        if layout_type == LayoutType.STRIP_1X4:
+        if layout_type == LayoutType.SINGLE_1X1:
+            return self._create_1x1_composite(
+                photos, include_date, include_logo, date_text, frame_type,
+                include_custom_text, custom_text
+            )
+        elif layout_type == LayoutType.STRIP_1X4:
             return self._create_1x4_composite(
                 photos, include_date, include_logo, date_text, frame_type,
                 include_custom_text, custom_text
@@ -565,6 +573,185 @@ class ImageProcessor(ImageProcessorPort):
 
         logger.info(f"Created 1x4 composite image with frame type: {frame_type.value}")
         return output.getvalue()
+
+    def _calculate_1x1_dimensions(self, frame_config: dict) -> Tuple[int, int]:
+        """Calculate photo dimensions for 1x1 single photo layout.
+
+        The photo fills most of the canvas with minimal padding,
+        leaving space at the bottom for text/date.
+        """
+        padding = frame_config["padding"]
+        bottom_margin = frame_config["bottom_margin"]
+
+        # Photo fills the available area
+        photo_width = self.COMPOSITE_WIDTH - (2 * padding)
+        photo_height = self.COMPOSITE_HEIGHT - (2 * padding) - bottom_margin
+
+        return photo_width, photo_height
+
+    def _create_1x1_composite(
+        self,
+        photos: List[bytes],
+        include_date: bool,
+        include_logo: bool,
+        date_text: Optional[str],
+        frame_type: FrameType,
+        include_custom_text: bool = True,
+        custom_text: Optional[str] = None,
+    ) -> bytes:
+        """Create a 1x1 single photo composite image (full page)."""
+        # Get frame configuration
+        frame_config = self._get_frame_config(frame_type)
+        photo_width, photo_height = self._calculate_1x1_dimensions(frame_config)
+        padding = frame_config["padding"]
+
+        # Create canvas with frame background color
+        bg_color = frame_config["background_color"]
+        composite = Image.new(
+            "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
+        )
+
+        # Load background image if configured
+        if frame_config.get("use_background_image"):
+            bg_image_name = frame_config.get("background_image")
+            if bg_image_name:
+                bg_img = self._load_background_image(bg_image_name)
+                if bg_img:
+                    composite.paste(bg_img, (0, 0))
+
+        # Apply diagonal gradient background for Rwanda style
+        elif frame_config.get("is_diagonal_gradient"):
+            try:
+                self._draw_rwanda_diagonal_background_fast(composite)
+            except ImportError:
+                self._draw_rwanda_diagonal_background(composite)
+
+        # Add film strip holes if applicable
+        if frame_config["has_film_holes"]:
+            self._add_film_holes(composite)
+
+        # Place the single photo
+        corner_radius = frame_config["corner_radius"]
+        try:
+            photo = Image.open(io.BytesIO(photos[0]))
+            # Resize and crop to fit
+            photo = self._resize_and_crop(photo, (photo_width, photo_height))
+
+            # Apply rounded corners if needed
+            if corner_radius > 0:
+                photo = self._apply_rounded_corners(photo, corner_radius)
+                composite.paste(photo, (padding, padding), photo if photo.mode == "RGBA" else None)
+            else:
+                composite.paste(photo, (padding, padding))
+        except Exception as e:
+            logger.error(f"Failed to process photo: {e}")
+            raise
+
+        # Determine text colors based on background
+        dark_bg_frames = (
+            FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL,
+            FrameType.RWANDA_MISSION_1, FrameType.RWANDA_MISSION_2
+        )
+        if frame_type in dark_bg_frames:
+            text_color = "#FFFFFF"
+            shadow_color = "#000000"
+        else:
+            text_color = "#333333"
+            shadow_color = "#888888"
+
+        # Add custom text if enabled
+        if include_custom_text and custom_text:
+            self._add_custom_text_1x1(
+                composite, custom_text, frame_config, text_color, shadow_color
+            )
+
+        # Add date stamp
+        if include_date:
+            date_text = date_text or datetime.now().strftime("%Y.%m.%d %H:%M")
+            self._add_date_stamp_1x1(
+                composite, date_text, frame_config, text_color, shadow_color,
+                has_custom_text=include_custom_text and bool(custom_text)
+            )
+
+        # Save to bytes
+        output = io.BytesIO()
+        composite.save(output, format="JPEG", quality=self.composite_quality)
+        output.seek(0)
+
+        logger.info(f"Created 1x1 composite image with frame type: {frame_type.value}")
+        return output.getvalue()
+
+    def _add_custom_text_1x1(
+        self,
+        img: Image.Image,
+        custom_text: str,
+        frame_config: dict,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+    ) -> None:
+        """Add custom text to bottom of 1x1 composite image."""
+        draw = ImageDraw.Draw(img)
+
+        # Use 2x2 font size for 1x1 layout
+        font = self._load_font(self.CUSTOM_TEXT_FONT_SIZE)
+
+        # Calculate Y position
+        padding = frame_config["padding"]
+        photo_height = self._calculate_1x1_dimensions(frame_config)[1]
+        photos_bottom = padding + photo_height
+
+        # Split text into lines
+        lines = custom_text.split('\n')
+        line_height = int(self.CUSTOM_TEXT_FONT_SIZE * 1.3)
+
+        # Start position for custom text
+        start_y = photos_bottom + 20
+
+        for line_idx, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            x = (self.COMPOSITE_WIDTH - text_width) // 2
+            y = start_y + line_idx * line_height
+
+            # Draw text with shadow
+            draw.text((x + 2, y + 2), line, font=font, fill=shadow_color)
+            draw.text((x, y), line, font=font, fill=text_color)
+
+    def _add_date_stamp_1x1(
+        self,
+        img: Image.Image,
+        date_text: str,
+        frame_config: dict,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+        has_custom_text: bool = False,
+    ) -> None:
+        """Add date stamp to bottom of 1x1 composite image."""
+        draw = ImageDraw.Draw(img)
+
+        # Use 2x2 date font size
+        font = self._load_font(self.DATE_FONT_SIZE)
+
+        # Calculate position
+        bbox = draw.textbbox((0, 0), date_text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (self.COMPOSITE_WIDTH - text_width) // 2
+
+        padding = frame_config["padding"]
+        bottom_margin = frame_config["bottom_margin"]
+        photo_height = self._calculate_1x1_dimensions(frame_config)[1]
+        photos_bottom = padding + photo_height
+
+        if has_custom_text:
+            # Date goes at the bottom, below custom text
+            y = photos_bottom + bottom_margin - text_height - 15
+        else:
+            y = photos_bottom + (bottom_margin - text_height) // 2
+
+        # Draw text with slight shadow
+        draw.text((x + 2, y + 2), date_text, font=font, fill=shadow_color)
+        draw.text((x, y), date_text, font=font, fill=text_color)
 
     def _add_date_stamp_1x4(
         self,

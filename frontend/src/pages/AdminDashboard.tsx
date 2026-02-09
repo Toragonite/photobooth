@@ -294,6 +294,12 @@ export function AdminDashboard() {
               >
                 {t("admin.gallery.title") || "Photo Gallery"}
               </button>
+              <button
+                onClick={() => navigate("/admin/upload")}
+                className="btn-primary py-2 px-4 min-h-0"
+              >
+                {t("admin.upload.title") || "Mobile Upload"}
+              </button>
             </div>
           </div>
         </div>

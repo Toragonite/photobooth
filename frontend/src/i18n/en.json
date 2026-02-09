@@ -10,6 +10,8 @@
     "languageToggle": "한국어",
     "selectLayout": "Select Layout",
     "layout": {
+      "single": "1x1 Full",
+      "singleDesc": "Single full-size photo",
       "strip": "Strip (1x4)",
       "stripDesc": "Two vertical strips",
       "grid": "Grid (2x2)",
@@ -60,6 +62,7 @@
     "includeDate": "Show Date",
     "includeLogo": "Show Logo",
     "includeCustomText": "Somang Youth",
+    "includeText": "Show Text",
     "print": "Print",
     "generating": "Generating image..."
   },
@@ -69,7 +72,9 @@
     "sending": "Sending to printer...",
     "printing": "Printing...",
     "pleaseWait": "Please wait",
-    "doNotLeave": "Do not leave this screen"
+    "doNotLeave": "Do not leave this screen",
+    "inProgress": "Printing...",
+    "success": "Print completed"
   },
   "complete": {
     "title": "Complete!",
@@ -108,6 +113,22 @@
       "activity": "Today's Activity",
       "settings": "Settings",
       "logout": "Logout"
+    },
+    "upload": {
+      "title": "Mobile Upload",
+      "step1": "Select Layout",
+      "step2": "Upload Photos",
+      "step3": "Select Frame",
+      "step4": "Preview & Print",
+      "selectLayout": "Select a layout",
+      "uploadPhotos": "Upload your photos",
+      "selectFrame": "Select a frame",
+      "previewAndPrint": "Preview & Print",
+      "dropzone": "Drag photos here or tap to select",
+      "requiredPhotos": "{{count}} photo(s) required",
+      "notEnoughPhotos": "{{count}} photo(s) required",
+      "uploading": "Uploading...",
+      "newUpload": "New Upload"
     },
     "gallery": {
       "title": "Photo Gallery",
@@ -157,6 +178,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "back": "Back",
-    "home": "Home"
+    "home": "Home",
+    "next": "Next"
   }
 }

@@ -10,11 +10,38 @@ export function LayoutSelector({ value, onChange }: LayoutSelectorProps) {
   const { t } = useLanguage();
 
   return (
-    <div className="flex gap-4 justify-center">
+    <div className="flex gap-4 justify-center flex-wrap">
+      {/* 1x1 Single Layout */}
+      <button
+        onClick={() => onChange("1x1")}
+        className={`selection-card flex-1 max-w-[140px] min-w-[120px] ${
+          value === "1x1" ? "selected" : ""
+        }`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          {/* Visual representation of 1x1 layout - single large photo */}
+          <div className="flex items-center justify-center">
+            <div
+              className={`w-16 h-12 rounded-sm ${
+                value === "1x1" ? "bg-primary" : "bg-gray-300"
+              }`}
+            />
+          </div>
+          <div className="text-center">
+            <p className={`font-medium text-sm ${value === "1x1" ? "text-primary" : "text-text"}`}>
+              {t(LAYOUT_CONFIGS["1x1"].label)}
+            </p>
+            <p className="text-xs text-text-muted mt-0.5">
+              {t(LAYOUT_CONFIGS["1x1"].description)}
+            </p>
+          </div>
+        </div>
+      </button>
+
       {/* 1x4 Strip Layout */}
       <button
         onClick={() => onChange("1x4")}
-        className={`selection-card flex-1 max-w-[160px] ${
+        className={`selection-card flex-1 max-w-[140px] min-w-[120px] ${
           value === "1x4" ? "selected" : ""
         }`}
       >
@@ -58,7 +85,7 @@ export function LayoutSelector({ value, onChange }: LayoutSelectorProps) {
       {/* 2x2 Grid Layout */}
       <button
         onClick={() => onChange("2x2")}
-        className={`selection-card flex-1 max-w-[160px] ${
+        className={`selection-card flex-1 max-w-[140px] min-w-[120px] ${
           value === "2x2" ? "selected" : ""
         }`}
       >

@@ -16,6 +16,7 @@ import {
   getFilterString,
   EnhancementSettings,
 } from "../utils/imageEnhancement";
+import { getPhotoCount } from "../types/layout";
 
 type CameraState =
   | "initializing"
@@ -40,6 +41,9 @@ export function CameraPage() {
   const { t } = useLanguage();
   const { settings } = useSettings();
   const { layoutType, sessionId } = useSession();
+
+  // Get required photo count for current layout
+  const requiredPhotos = getPhotoCount(layoutType);
 
   const [cameraState, setCameraState] = useState<CameraState>("initializing");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -123,7 +127,7 @@ export function CameraPage() {
           await api.uploadPhoto(sessionId, newPhotos.length - 1, blob);
         }
 
-        if (newPhotos.length >= 4) {
+        if (newPhotos.length >= requiredPhotos) {
           setCameraState("complete");
           // Navigate to preview after short delay
           setTimeout(() => navigate("/preview"), 500);
@@ -160,14 +164,14 @@ export function CameraPage() {
   }
 
   // Check if controls should be visible
-  const showControls = cameraState === "ready" && photos.length < 4;
+  const showControls = cameraState === "ready" && photos.length < requiredPhotos;
 
   return (
     <div className="flex flex-col h-full">
       {/* Title - fixed height */}
       <div className="section-fixed text-center h-14 flex flex-col justify-center">
         <h1 className="text-2xl font-bold text-primary">{t("camera.title")}</h1>
-        <p className="text-text-muted text-sm">{photos.length} / 4</p>
+        <p className="text-text-muted text-sm">{photos.length} / {requiredPhotos}</p>
       </div>
 
       {/* Camera preview - grows to fill space */}
@@ -216,7 +220,7 @@ export function CameraPage() {
 
       {/* Thumbnail strip - fixed height */}
       <div className="section-fixed h-20 flex justify-center items-center gap-3">
-        {[0, 1, 2, 3].map((index) => (
+        {Array.from({ length: requiredPhotos }, (_, index) => (
           <PhotoThumbnail
             key={index}
             index={index}
