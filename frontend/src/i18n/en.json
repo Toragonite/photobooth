@@ -48,7 +48,8 @@
       "filmStrip": "Film",
       "polaroid": "Polaroid",
       "minimal": "Minimal",
-      "rounded": "Rounded"
+      "rounded": "Rounded",
+      "rwandaDiagonal": "Rwanda"
     },
     "copies": "Copies",
     "copiesCount": "{{count}}",

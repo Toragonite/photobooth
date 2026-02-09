@@ -48,7 +48,8 @@
       "filmStrip": "필름",
       "polaroid": "폴라로이드",
       "minimal": "심플",
-      "rounded": "라운드"
+      "rounded": "라운드",
+      "rwandaDiagonal": "르완다"
     },
     "copies": "인쇄 매수",
     "copiesCount": "{{count}}장",

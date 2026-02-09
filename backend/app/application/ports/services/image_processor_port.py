@@ -13,6 +13,7 @@ class FrameType(str, Enum):
     POLAROID = "polaroid"      # Polaroid style with large bottom margin
     MINIMAL = "minimal"        # Edge-to-edge photos, thin borders
     ROUNDED = "rounded"        # Rounded corners on photos
+    RWANDA_DIAGONAL = "rwanda_diagonal"  # Rwanda flag diagonal gradient
 
 
 class LayoutType(str, Enum):
