@@ -13,6 +13,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminGallery } from "./pages/AdminGallery";
 import { AdminSessionDetail } from "./pages/AdminSessionDetail";
 import { AdminUpload } from "./pages/AdminUpload";
+import { SetupPage } from "./pages/SetupPage";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
       <Route path="/admin/gallery" element={<AdminGallery />} />
       <Route path="/admin/gallery/:sessionId" element={<AdminSessionDetail />} />
       <Route path="/admin/upload" element={<AdminUpload />} />
+      <Route path="/setup" element={<SetupPage />} />
     </Routes>
   );
 }

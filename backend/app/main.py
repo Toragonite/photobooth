@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .adapters.api import admin, health, print_jobs, session
+from .adapters.api import admin, health, print_jobs, session, setup
 from .config import get_settings
 from .infrastructure.database import init_db
 from .infrastructure.scheduler import init_scheduler
@@ -65,6 +65,7 @@ app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(session.router, prefix="/api", tags=["Session"])
 app.include_router(print_jobs.router, prefix="/api", tags=["Print"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(setup.router, prefix="/api", tags=["Setup"])
 
 
 @app.get("/")

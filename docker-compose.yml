@@ -20,6 +20,7 @@ services:
     volumes:
       - photobooth-data:/app/data
       - /var/run/cups:/var/run/cups  # CUPS socket for printing
+      - ./rootCA.pem:/app/certs/rootCA.pem:ro  # Root CA for HTTPS trust setup
     ports:
       - "8000:8000"
     healthcheck:

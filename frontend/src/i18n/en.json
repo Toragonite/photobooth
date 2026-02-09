@@ -180,5 +180,51 @@
     "back": "Back",
     "home": "Home",
     "next": "Next"
+  },
+  "setup": {
+    "title": "Camera Setup",
+    "subtitle": "Install the security certificate to use the camera",
+    "download": "Download Certificate",
+    "downloadDesc": "Tap the button below to download the certificate file",
+    "downloading": "Downloading...",
+    "downloadSuccess": "Download complete!",
+    "downloadError": "Download failed. Please try again.",
+    "installGuide": "Installation Guide",
+    "selectDevice": "Select your device type",
+    "ios": {
+      "title": "iOS / iPadOS",
+      "step1": "Tap the button above to download certificate",
+      "step2": "Open Settings app → 'Profile Downloaded' notification",
+      "step3": "Tap 'Install' to install the profile",
+      "step4": "Settings → General → About → Certificate Trust Settings",
+      "step5": "Enable trust for mkcert certificate"
+    },
+    "android": {
+      "title": "Android",
+      "step1": "Tap the button above to download certificate",
+      "step2": "Settings → Security → Encryption & credentials",
+      "step3": "Install a certificate → CA certificate",
+      "step4": "Select the downloaded file",
+      "step5": "Confirm the warning and complete installation"
+    },
+    "macos": {
+      "title": "macOS",
+      "step1": "Download and double-click the certificate",
+      "step2": "Select 'login' in Keychain Access",
+      "step3": "Double-click the added certificate",
+      "step4": "Expand the 'Trust' section",
+      "step5": "Change to 'Always Trust'"
+    },
+    "windows": {
+      "title": "Windows",
+      "step1": "Download the certificate",
+      "step2": "Press Win+R → Run certmgr.msc",
+      "step3": "Right-click 'Trusted Root Certification Authorities'",
+      "step4": "All Tasks → Import",
+      "step5": "Select the downloaded file and complete"
+    },
+    "done": "Setup Complete",
+    "startPhotobooth": "Start PhotoBooth",
+    "note": "You may need to refresh or restart your browser after installing the certificate"
   }
 }
