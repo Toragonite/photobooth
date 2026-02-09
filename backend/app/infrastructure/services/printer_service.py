@@ -63,7 +63,6 @@ class PrinterService(PrinterPort):
     def __init__(self):
         self.mock_mode = settings.printer_mock_mode
         self.selection_strategy = settings.printer_selection_strategy
-        self.auto_discover = settings.printer_auto_discover
         self.name_pattern = settings.printer_name_pattern.lower()
         self._cups = None
         self._mock_job_counter = 1000
@@ -380,19 +379,8 @@ class PrinterService(PrinterPort):
 
     @property
     def printer_names(self) -> List[str]:
-        """Get list of active printer names.
-
-        Priority:
-        1. Explicit printer_names from settings (if set)
-        2. Auto-discovered printers from CUPS (primary method)
-        3. Empty list if nothing found (no fallback to potentially non-existent printer)
-        """
-        if settings.printer_names:
-            return settings.printer_names
-        if self._discovered_printers:
-            return self._discovered_printers
-        # Return empty list - don't fallback to a potentially non-existent printer
-        return []
+        """Get list of active printer names from auto-discovery."""
+        return self._discovered_printers
 
     @property
     def has_printers(self) -> bool:
