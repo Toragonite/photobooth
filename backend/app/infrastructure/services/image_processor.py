@@ -28,110 +28,114 @@ class ImageProcessor(ImageProcessorPort):
     COMPOSITE_WIDTH = 1200
     COMPOSITE_HEIGHT = 1800
 
-    # Frame template configurations
-    # Each template defines: padding, photo_gap, bottom_margin, corner_radius, has_film_holes
+    # Standardized frame template configurations
+    # All frames use IDENTICAL photo sizing, gaps, and text positioning for consistency
+    # Only visual styling (background, corners, effects) differs between frames
+
+    # Standard values for all frames
+    STANDARD_PADDING = 50  # Increased padding = smaller photos
+    STANDARD_PHOTO_GAP = 30  # Larger gap between photos
+    STANDARD_BOTTOM_MARGIN = 200  # More space for custom text + date
+    STANDARD_CORNER_RADIUS = 12
+
     FRAME_CONFIGS = {
         FrameType.CLASSIC: {
-            "padding": 20,
-            "photo_gap": 20,
-            "bottom_margin": 100,  # Increased from 60
-            "corner_radius": 0,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": 0,  # Classic has no rounded corners
             "has_film_holes": False,
             "background_color": "#FFFFFF",
         },
         FrameType.FILM_STRIP: {
-            "padding": 40,
-            "photo_gap": 15,
-            "bottom_margin": 80,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
             "corner_radius": 0,
             "has_film_holes": True,
             "background_color": "#1A1A1A",
         },
         FrameType.POLAROID: {
-            "padding": 30,
-            "photo_gap": 25,
-            "bottom_margin": 150,  # Large bottom margin like real polaroid
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
             "corner_radius": 0,
             "has_film_holes": False,
             "background_color": "#FAFAFA",
         },
         FrameType.MINIMAL: {
-            "padding": 8,
-            "photo_gap": 8,
-            "bottom_margin": 60,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
             "corner_radius": 0,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
         },
         FrameType.ROUNDED: {
-            "padding": 25,
-            "photo_gap": 20,
-            "bottom_margin": 90,
-            "corner_radius": 20,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
         },
         FrameType.RWANDA_DIAGONAL: {
-            "padding": 30,
-            "photo_gap": 20,
-            "bottom_margin": 100,
-            "corner_radius": 12,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "is_diagonal_gradient": True,
         },
-        # New Rwanda mission background templates
-        FrameType.RWANDA_GRID_2X2: {
-            "padding": 30,
-            "photo_gap": 20,
-            "bottom_margin": 180,  # Extra space for custom text + date
-            "corner_radius": 12,
-            "has_film_holes": False,
-            "background_color": "#FFFFFF",
-            "use_background_image": True,
-            "background_image": "rwanda-grid-2x2.png",
-        },
+        # Rwanda mission background templates
         FrameType.RWANDA_GRID_1X4: {
-            "padding": 30,
-            "photo_gap": 15,
-            "bottom_margin": 160,
-            "corner_radius": 10,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "use_background_image": True,
             "background_image": "rwanda-grid-1x4.png",
         },
         FrameType.RWANDA_MISSION_1: {
-            "padding": 30,
-            "photo_gap": 20,
-            "bottom_margin": 180,
-            "corner_radius": 12,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "use_background_image": True,
             "background_image": "rwanda-full-grid-1.png",
         },
         FrameType.RWANDA_MISSION_2: {
-            "padding": 30,
-            "photo_gap": 20,
-            "bottom_margin": 180,
-            "corner_radius": 12,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "use_background_image": True,
             "background_image": "rwanda-full-grid-2.png",
         },
         FrameType.RWANDA_MISSION_3: {
-            "padding": 30,
-            "photo_gap": 20,
-            "bottom_margin": 180,
-            "corner_radius": 12,
+            "padding": STANDARD_PADDING,
+            "photo_gap": STANDARD_PHOTO_GAP,
+            "bottom_margin": STANDARD_BOTTOM_MARGIN,
+            "corner_radius": STANDARD_CORNER_RADIUS,
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "use_background_image": True,
             "background_image": "rwanda-full-grid-3.png",
         },
     }
+
+    # Standardized text sizes (larger for better visibility)
+    CUSTOM_TEXT_FONT_SIZE = 48  # For custom text (2x2 layout)
+    CUSTOM_TEXT_1X4_FONT_SIZE = 42  # For custom text (1x4 layout)
+    DATE_FONT_SIZE = 40  # For date stamp (2x2 layout) - smaller than custom text
+    DATE_1X4_FONT_SIZE = 36  # For date stamp (1x4 layout) - smaller than custom text
 
     # Rwanda flag colors
     RWANDA_COLORS = {
@@ -324,7 +328,11 @@ class ImageProcessor(ImageProcessorPort):
             )
 
     def _load_background_image(self, image_name: str) -> Optional[Image.Image]:
-        """Load and resize a background image from assets."""
+        """Load and resize a background image from assets to fill the entire canvas.
+
+        Uses 'cover' mode: scales the image to fill the entire area while
+        maintaining aspect ratio, then center-crops any overflow.
+        """
         try:
             image_path = ASSETS_DIR / image_name
             if not image_path.exists():
@@ -332,14 +340,30 @@ class ImageProcessor(ImageProcessorPort):
                 return None
 
             bg_img = Image.open(image_path)
-            # Resize to fit composite dimensions
-            bg_img = bg_img.resize(
-                (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT),
-                Image.Resampling.LANCZOS
-            )
-            # Convert to RGB if necessary
+
+            # Convert to RGB if necessary (do this first to avoid issues)
             if bg_img.mode != "RGB":
                 bg_img = bg_img.convert("RGB")
+
+            # Calculate scale factor to COVER the target area (fill completely)
+            img_width, img_height = bg_img.size
+            target_width, target_height = self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT
+
+            # Scale to cover: use the larger scale factor so image fills entire area
+            scale = max(target_width / img_width, target_height / img_height)
+
+            # Resize maintaining aspect ratio
+            new_width = int(img_width * scale)
+            new_height = int(img_height * scale)
+            bg_img = bg_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Center crop to exact target dimensions
+            left = (new_width - target_width) // 2
+            top = (new_height - target_height) // 2
+            right = left + target_width
+            bottom = top + target_height
+            bg_img = bg_img.crop((left, top, right, bottom))
+
             return bg_img
         except Exception as e:
             logger.error(f"Failed to load background image {image_name}: {e}")
@@ -554,16 +578,8 @@ class ImageProcessor(ImageProcessorPort):
         """Add date stamp to bottom of 1x4 composite image (on both left and right strips)."""
         draw = ImageDraw.Draw(img)
 
-        # Larger font size (increased from 28 to 40)
-        try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40
-            )
-        except OSError:
-            try:
-                font = ImageFont.truetype("arial.ttf", 40)
-            except OSError:
-                font = ImageFont.load_default()
+        # Use standardized font size
+        font = self._load_font(self.DATE_1X4_FONT_SIZE)
 
         # Calculate strip positions
         padding = frame_config["padding"]
@@ -611,16 +627,8 @@ class ImageProcessor(ImageProcessorPort):
         """Add custom text to bottom of 1x4 composite image (on both strips)."""
         draw = ImageDraw.Draw(img)
 
-        # Font for custom text (slightly smaller than date)
-        try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32
-            )
-        except OSError:
-            try:
-                font = ImageFont.truetype("arial.ttf", 32)
-            except OSError:
-                font = ImageFont.load_default()
+        # Use standardized font size for custom text
+        font = self._load_font(self.CUSTOM_TEXT_1X4_FONT_SIZE)
 
         # Calculate strip positions
         padding = frame_config["padding"]
@@ -635,10 +643,10 @@ class ImageProcessor(ImageProcessorPort):
 
         # Split text into lines
         lines = custom_text.split('\n')
-        line_height = 36  # Approximate line height
+        line_height = int(self.CUSTOM_TEXT_1X4_FONT_SIZE * 1.3)  # Dynamic line height based on font size
 
         # Start position for custom text
-        start_y = photos_bottom + 15
+        start_y = photos_bottom + 20
 
         for line_idx, line in enumerate(lines):
             bbox = draw.textbbox((0, 0), line, font=font)
@@ -805,6 +813,29 @@ class ImageProcessor(ImageProcessorPort):
 
         return img.crop((left, top, right, bottom))
 
+    def _load_font(self, size: int) -> ImageFont.FreeTypeFont:
+        """Load a bold font with the specified size from project assets."""
+        # Use bundled Pretendard font from assets directory
+        font_path = ASSETS_DIR / "Pretendard-Bold.ttf"
+        try:
+            return ImageFont.truetype(str(font_path), size)
+        except OSError:
+            logger.warning(f"Could not load font from {font_path}, trying fallback fonts")
+            # Fallback to other bundled or system fonts
+            fallback_paths = [
+                ASSETS_DIR / "ArialBold.ttf",  # Bundled fallback
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",  # macOS
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+                "C:/Windows/Fonts/arialbd.ttf",  # Windows
+            ]
+            for path in fallback_paths:
+                try:
+                    return ImageFont.truetype(str(path), size)
+                except OSError:
+                    continue
+            logger.error(f"Could not load any font with size {size}")
+            return ImageFont.load_default()
+
     def _add_custom_text_2x2(
         self,
         img: Image.Image,
@@ -816,16 +847,8 @@ class ImageProcessor(ImageProcessorPort):
         """Add custom text to bottom of 2x2 composite image (above date)."""
         draw = ImageDraw.Draw(img)
 
-        # Font for custom text
-        try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36
-            )
-        except OSError:
-            try:
-                font = ImageFont.truetype("arial.ttf", 36)
-            except OSError:
-                font = ImageFont.load_default()
+        # Use standardized font size for custom text
+        font = self._load_font(self.CUSTOM_TEXT_FONT_SIZE)
 
         # Calculate Y position
         padding = frame_config["padding"]
@@ -834,10 +857,10 @@ class ImageProcessor(ImageProcessorPort):
 
         # Split text into lines
         lines = custom_text.split('\n')
-        line_height = 42  # Approximate line height
+        line_height = int(self.CUSTOM_TEXT_FONT_SIZE * 1.3)  # Dynamic line height based on font size
 
         # Start position for custom text (at top of bottom margin area)
-        start_y = photos_bottom + 15
+        start_y = photos_bottom + 20
 
         for line_idx, line in enumerate(lines):
             bbox = draw.textbbox((0, 0), line, font=font)
@@ -861,16 +884,8 @@ class ImageProcessor(ImageProcessorPort):
         """Add date stamp to bottom of image."""
         draw = ImageDraw.Draw(img)
 
-        # Larger font size (increased from 36 to 48)
-        try:
-            font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48
-            )
-        except OSError:
-            try:
-                font = ImageFont.truetype("arial.ttf", 48)
-            except OSError:
-                font = ImageFont.load_default()
+        # Use standardized font size for date
+        font = self._load_font(self.DATE_FONT_SIZE)
 
         # Calculate position (center bottom, respecting bottom margin)
         bbox = draw.textbbox((0, 0), date_text, font=font)

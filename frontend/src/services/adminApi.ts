@@ -390,17 +390,33 @@ class AdminApiClient {
   }
 
   // Photo export
-  async getExportableSessions(): Promise<
-    ApiResponse<
-      Array<{
-        session_id: string;
-        photo_count: number;
+  async getExportableSessions(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<
+    ApiResponse<{
+      sessions: Array<{
+        id: string;
         created_at: string;
+        status: string;
+        language: string;
         has_composite: boolean;
-      }>
-    >
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        total_pages: number;
+      };
+    }>
   > {
-    return this.request("/photos");
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set("page", String(params.page));
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.status) searchParams.set("status", params.status);
+    const query = searchParams.toString();
+    return this.request(`/photos${query ? `?${query}` : ""}`);
   }
 
   async getSessionPhotos(sessionId: string): Promise<
@@ -415,6 +431,41 @@ class AdminApiClient {
 
   getSessionDownloadUrl(sessionId: string): string {
     return `${API_BASE}/photos/${sessionId}/download`;
+  }
+
+  async downloadSessionPhotos(sessionId: string): Promise<void> {
+    const url = `${API_BASE}/photos/${sessionId}/download`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+      }
+      throw new Error(`Download failed: HTTP ${response.status}`);
+    }
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = `session_${sessionId.slice(0, 8)}.zip`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+      if (match) {
+        filename = match[1];
+      }
+    }
+
+    // Create blob and download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
   }
 
   async createBulkExport(sessionIds: string[]): Promise<

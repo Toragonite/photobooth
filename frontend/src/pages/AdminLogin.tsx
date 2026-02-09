@@ -67,7 +67,7 @@ export function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="h-screen overflow-y-auto bg-background flex items-center justify-center p-4">
       <div className="card max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">

@@ -50,7 +50,6 @@
       "minimal": "Minimal",
       "rounded": "Rounded",
       "rwandaDiagonal": "Rwanda",
-      "rwandaGrid2x2": "Mountain",
       "rwandaGrid1x4": "Rwanda Scene",
       "rwandaMission1": "Mission 1",
       "rwandaMission2": "Mission 2",
@@ -109,6 +108,46 @@
       "activity": "Today's Activity",
       "settings": "Settings",
       "logout": "Logout"
+    },
+    "gallery": {
+      "title": "Photo Gallery",
+      "loading": "Loading sessions...",
+      "loadError": "Failed to load sessions",
+      "noSessions": "No sessions found",
+      "loadMore": "Load More",
+      "sessionsCount": "sessions",
+      "filters": {
+        "all": "All",
+        "complete": "Complete",
+        "printed": "Printed",
+        "active": "Active",
+        "abandoned": "Abandoned"
+      },
+      "session": {
+        "downloadAll": "Download",
+        "reprint": "Reprint"
+      },
+      "bulk": {
+        "selected": "{{count}} selected",
+        "download": "Download Selected",
+        "clear": "Clear",
+        "exportStarted": "Export started",
+        "exportFailed": "Export failed"
+      },
+      "reprint": {
+        "title": "Reprint Photo",
+        "copies": "Number of Copies",
+        "confirm": "Print",
+        "cancel": "Cancel",
+        "submitting": "Sending to printer..."
+      },
+      "detail": {
+        "backToGallery": "Gallery",
+        "backToDashboard": "Dashboard",
+        "photos": "Photos",
+        "composite": "Composite",
+        "filesCleaned": "Files have been cleaned up"
+      }
     }
   },
   "common": {

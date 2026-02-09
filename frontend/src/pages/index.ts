@@ -6,3 +6,5 @@ export { CompletePage } from "./CompletePage";
 export { ErrorPage } from "./ErrorPage";
 export { AdminLogin } from "./AdminLogin";
 export { AdminDashboard } from "./AdminDashboard";
+export { AdminGallery } from "./AdminGallery";
+export { AdminSessionDetail } from "./AdminSessionDetail";

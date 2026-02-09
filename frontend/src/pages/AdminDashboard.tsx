@@ -129,7 +129,7 @@ export function AdminDashboard() {
   const hasManyPrinters = printers.length > 1;
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="h-screen overflow-y-auto bg-background p-4 md:p-8">
       {/* Header */}
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-primary">
@@ -288,6 +288,12 @@ export function AdminDashboard() {
                   Test Print
                 </button>
               )}
+              <button
+                onClick={() => navigate("/admin/gallery")}
+                className="btn-primary py-2 px-4 min-h-0"
+              >
+                {t("admin.gallery.title") || "Photo Gallery"}
+              </button>
             </div>
           </div>
         </div>

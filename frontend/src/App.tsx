@@ -10,6 +10,8 @@ import { CompletePage } from "./pages/CompletePage";
 import { ErrorPage } from "./pages/ErrorPage";
 import { AdminLogin } from "./pages/AdminLogin";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminGallery } from "./pages/AdminGallery";
+import { AdminSessionDetail } from "./pages/AdminSessionDetail";
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
       </Route>
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/gallery" element={<AdminGallery />} />
+      <Route path="/admin/gallery/:sessionId" element={<AdminSessionDetail />} />
     </Routes>
   );
 }

@@ -14,7 +14,6 @@ type FrameType =
   | "minimal"
   | "rounded"
   | "rwanda_diagonal"
-  | "rwanda_grid_2x2"
   | "rwanda_grid_1x4"
   | "rwanda_mission_1"
   | "rwanda_mission_2"
@@ -33,7 +32,6 @@ const FRAME_OPTIONS: FrameOption[] = [
   { id: "minimal", labelKey: "preview.frames.minimal", icon: "⬜" },
   { id: "rounded", labelKey: "preview.frames.rounded", icon: "🔲" },
   { id: "rwanda_diagonal", labelKey: "preview.frames.rwandaDiagonal", icon: "🇷🇼" },
-  { id: "rwanda_grid_2x2", labelKey: "preview.frames.rwandaGrid2x2", icon: "🏔️" },
   { id: "rwanda_grid_1x4", labelKey: "preview.frames.rwandaGrid1x4", icon: "🎨" },
   { id: "rwanda_mission_1", labelKey: "preview.frames.rwandaMission1", icon: "🌍" },
   { id: "rwanda_mission_2", labelKey: "preview.frames.rwandaMission2", icon: "🌊" },

@@ -14,8 +14,7 @@ class FrameType(str, Enum):
     MINIMAL = "minimal"        # Edge-to-edge photos, thin borders
     ROUNDED = "rounded"        # Rounded corners on photos
     RWANDA_DIAGONAL = "rwanda_diagonal"  # Rwanda flag diagonal gradient
-    # New Rwanda mission background templates
-    RWANDA_GRID_2X2 = "rwanda_grid_2x2"      # Mountain + cross scenery (2x2)
+    # Rwanda mission background templates
     RWANDA_GRID_1X4 = "rwanda_grid_1x4"      # 4-panel Rwanda scenes (1x4)
     RWANDA_MISSION_1 = "rwanda_mission_1"    # Rwanda flag + mission theme
     RWANDA_MISSION_2 = "rwanda_mission_2"    # Rwanda flag wave pattern

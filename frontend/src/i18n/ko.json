@@ -50,7 +50,6 @@
       "minimal": "심플",
       "rounded": "라운드",
       "rwandaDiagonal": "르완다",
-      "rwandaGrid2x2": "산/십자가",
       "rwandaGrid1x4": "르완다 풍경",
       "rwandaMission1": "선교 1",
       "rwandaMission2": "선교 2",
@@ -109,6 +108,46 @@
       "activity": "오늘의 활동",
       "settings": "설정",
       "logout": "로그아웃"
+    },
+    "gallery": {
+      "title": "사진 갤러리",
+      "loading": "세션 로딩 중...",
+      "loadError": "세션을 불러올 수 없습니다",
+      "noSessions": "세션이 없습니다",
+      "loadMore": "더 보기",
+      "sessionsCount": "개 세션",
+      "filters": {
+        "all": "전체",
+        "complete": "완료",
+        "printed": "인쇄됨",
+        "active": "진행중",
+        "abandoned": "취소됨"
+      },
+      "session": {
+        "downloadAll": "다운로드",
+        "reprint": "재인쇄"
+      },
+      "bulk": {
+        "selected": "{{count}}개 선택됨",
+        "download": "선택 다운로드",
+        "clear": "선택 해제",
+        "exportStarted": "내보내기가 시작되었습니다",
+        "exportFailed": "내보내기에 실패했습니다"
+      },
+      "reprint": {
+        "title": "사진 재인쇄",
+        "copies": "인쇄 매수",
+        "confirm": "인쇄",
+        "cancel": "취소",
+        "submitting": "프린터로 전송 중..."
+      },
+      "detail": {
+        "backToGallery": "갤러리",
+        "backToDashboard": "대시보드",
+        "photos": "사진",
+        "composite": "합성 이미지",
+        "filesCleaned": "파일이 정리되었습니다"
+      }
     }
   },
   "common": {
