@@ -973,14 +973,27 @@ class ImageProcessor(ImageProcessorPort):
     async def generate_test_pattern(self, pattern_type: str, output_path: str) -> str:
         """Generate a test pattern image for printer calibration (Port interface)."""
         # Import test pattern generator
-        from .test_pattern import TestPatternGenerator
+        from .test_pattern import TestPatternGenerator, TestPatternType
 
         generator = TestPatternGenerator()
-        pattern_data = generator.generate(pattern_type)
 
-        # Write to output path
-        async with aiofiles.open(output_path, "wb") as f:
-            await f.write(pattern_data)
+        # Convert string to TestPatternType enum
+        try:
+            pattern_enum = TestPatternType(pattern_type)
+        except ValueError:
+            # Default to FULL if invalid pattern type
+            pattern_enum = TestPatternType.FULL
+
+        # generate() returns the file path, not bytes
+        generated_path = generator.generate(pattern_enum)
+
+        if generated_path is None:
+            raise RuntimeError(f"Failed to generate test pattern: {pattern_type}")
+
+        # Copy to output path if different
+        if generated_path != output_path:
+            import shutil
+            shutil.copy(generated_path, output_path)
 
         return output_path
 
