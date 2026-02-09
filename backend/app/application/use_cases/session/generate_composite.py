@@ -18,7 +18,9 @@ class GenerateCompositeInput:
     session_id: str
     include_date: bool = True
     include_logo: bool = True
-    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
+    include_custom_text: bool = True
+    custom_text: str = "2026 Somang Youth\nRwanda missionary"
+    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded, rwanda_*
     layout_type: str = "2x2"  # 2x2 (grid) or 1x4 (vertical strip duplicated)
 
 
@@ -86,6 +88,8 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 include_logo=input_data.include_logo,
                 frame_type=frame_type,
                 layout_type=layout_type,
+                include_custom_text=input_data.include_custom_text,
+                custom_text=input_data.custom_text,
             )
 
             # Save composite using storage service

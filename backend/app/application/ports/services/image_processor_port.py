@@ -14,6 +14,12 @@ class FrameType(str, Enum):
     MINIMAL = "minimal"        # Edge-to-edge photos, thin borders
     ROUNDED = "rounded"        # Rounded corners on photos
     RWANDA_DIAGONAL = "rwanda_diagonal"  # Rwanda flag diagonal gradient
+    # New Rwanda mission background templates
+    RWANDA_GRID_2X2 = "rwanda_grid_2x2"      # Mountain + cross scenery (2x2)
+    RWANDA_GRID_1X4 = "rwanda_grid_1x4"      # 4-panel Rwanda scenes (1x4)
+    RWANDA_MISSION_1 = "rwanda_mission_1"    # Rwanda flag + mission theme
+    RWANDA_MISSION_2 = "rwanda_mission_2"    # Rwanda flag wave pattern
+    RWANDA_MISSION_3 = "rwanda_mission_3"    # Cross + landscape (2x2)
 
 
 class LayoutType(str, Enum):
@@ -27,6 +33,8 @@ class CompositeOptions:
     """Options for composite image generation."""
     include_date: bool = True
     include_logo: bool = True
+    include_custom_text: bool = True
+    custom_text: str = "2026 Somang Youth\nRwanda missionary"
     background_color: str = "#FFFFFF"
     frame_type: FrameType = FrameType.CLASSIC
     layout_type: LayoutType = LayoutType.GRID_2X2

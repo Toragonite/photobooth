@@ -49,12 +49,18 @@
       "polaroid": "폴라로이드",
       "minimal": "심플",
       "rounded": "라운드",
-      "rwandaDiagonal": "르완다"
+      "rwandaDiagonal": "르완다",
+      "rwandaGrid2x2": "산/십자가",
+      "rwandaGrid1x4": "르완다 풍경",
+      "rwandaMission1": "선교 1",
+      "rwandaMission2": "선교 2",
+      "rwandaMission3": "선교 3"
     },
     "copies": "인쇄 매수",
     "copiesCount": "{{count}}장",
     "includeDate": "날짜 표시",
     "includeLogo": "로고 표시",
+    "includeCustomText": "소망 청년",
     "print": "인쇄하기",
     "generating": "이미지 생성 중..."
   },

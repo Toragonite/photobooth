@@ -49,12 +49,18 @@
       "polaroid": "Polaroid",
       "minimal": "Minimal",
       "rounded": "Rounded",
-      "rwandaDiagonal": "Rwanda"
+      "rwandaDiagonal": "Rwanda",
+      "rwandaGrid2x2": "Mountain",
+      "rwandaGrid1x4": "Rwanda Scene",
+      "rwandaMission1": "Mission 1",
+      "rwandaMission2": "Mission 2",
+      "rwandaMission3": "Mission 3"
     },
     "copies": "Copies",
     "copiesCount": "{{count}}",
     "includeDate": "Show Date",
     "includeLogo": "Show Logo",
+    "includeCustomText": "Somang Youth",
     "print": "Print",
     "generating": "Generating image..."
   },

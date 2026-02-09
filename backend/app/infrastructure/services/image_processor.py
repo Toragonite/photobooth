@@ -8,8 +8,13 @@ from typing import List, Optional, Tuple
 import aiofiles
 from PIL import Image, ImageDraw, ImageFont
 
+from pathlib import Path
+
 from ...application.ports.services.image_processor_port import (
     CompositeOptions, CompositeResult, FrameType, ImageProcessorPort, LayoutType)
+
+# Assets directory path
+ASSETS_DIR = Path(__file__).parent.parent / "assets"
 from ...config import get_settings
 
 settings = get_settings()
@@ -74,6 +79,57 @@ class ImageProcessor(ImageProcessorPort):
             "has_film_holes": False,
             "background_color": "#FFFFFF",
             "is_diagonal_gradient": True,
+        },
+        # New Rwanda mission background templates
+        FrameType.RWANDA_GRID_2X2: {
+            "padding": 30,
+            "photo_gap": 20,
+            "bottom_margin": 180,  # Extra space for custom text + date
+            "corner_radius": 12,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "use_background_image": True,
+            "background_image": "rwanda-grid-2x2.png",
+        },
+        FrameType.RWANDA_GRID_1X4: {
+            "padding": 30,
+            "photo_gap": 15,
+            "bottom_margin": 160,
+            "corner_radius": 10,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "use_background_image": True,
+            "background_image": "rwanda-grid-1x4.png",
+        },
+        FrameType.RWANDA_MISSION_1: {
+            "padding": 30,
+            "photo_gap": 20,
+            "bottom_margin": 180,
+            "corner_radius": 12,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "use_background_image": True,
+            "background_image": "rwanda-full-grid-1.png",
+        },
+        FrameType.RWANDA_MISSION_2: {
+            "padding": 30,
+            "photo_gap": 20,
+            "bottom_margin": 180,
+            "corner_radius": 12,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "use_background_image": True,
+            "background_image": "rwanda-full-grid-2.png",
+        },
+        FrameType.RWANDA_MISSION_3: {
+            "padding": 30,
+            "photo_gap": 20,
+            "bottom_margin": 180,
+            "corner_radius": 12,
+            "has_film_holes": False,
+            "background_color": "#FFFFFF",
+            "use_background_image": True,
+            "background_image": "rwanda-full-grid-3.png",
         },
     }
 
@@ -230,6 +286,8 @@ class ImageProcessor(ImageProcessorPort):
         date_text: Optional[str] = None,
         frame_type: FrameType = FrameType.CLASSIC,
         layout_type: LayoutType = LayoutType.GRID_2X2,
+        include_custom_text: bool = True,
+        custom_text: Optional[str] = None,
     ) -> bytes:
         """Create a 4-cut composite image.
 
@@ -240,6 +298,8 @@ class ImageProcessor(ImageProcessorPort):
             date_text: Custom date text, defaults to current date
             frame_type: Frame template to use
             layout_type: Layout arrangement (2x2 grid or 1x4 strip)
+            include_custom_text: Whether to add custom text (e.g., "2026 Somang Youth")
+            custom_text: Custom text to display, defaults to mission text
 
         Returns:
             Composite image as JPEG bytes
@@ -247,15 +307,43 @@ class ImageProcessor(ImageProcessorPort):
         if len(photos) != 4:
             raise ValueError(f"Expected 4 photos, got {len(photos)}")
 
+        # Default custom text
+        if custom_text is None:
+            custom_text = "2026 Somang Youth\nRwanda missionary"
+
         # Route to appropriate layout generator
         if layout_type == LayoutType.STRIP_1X4:
             return self._create_1x4_composite(
-                photos, include_date, include_logo, date_text, frame_type
+                photos, include_date, include_logo, date_text, frame_type,
+                include_custom_text, custom_text
             )
         else:
             return self._create_2x2_composite(
-                photos, include_date, include_logo, date_text, frame_type
+                photos, include_date, include_logo, date_text, frame_type,
+                include_custom_text, custom_text
             )
+
+    def _load_background_image(self, image_name: str) -> Optional[Image.Image]:
+        """Load and resize a background image from assets."""
+        try:
+            image_path = ASSETS_DIR / image_name
+            if not image_path.exists():
+                logger.warning(f"Background image not found: {image_path}")
+                return None
+
+            bg_img = Image.open(image_path)
+            # Resize to fit composite dimensions
+            bg_img = bg_img.resize(
+                (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT),
+                Image.Resampling.LANCZOS
+            )
+            # Convert to RGB if necessary
+            if bg_img.mode != "RGB":
+                bg_img = bg_img.convert("RGB")
+            return bg_img
+        except Exception as e:
+            logger.error(f"Failed to load background image {image_name}: {e}")
+            return None
 
     def _create_2x2_composite(
         self,
@@ -264,6 +352,8 @@ class ImageProcessor(ImageProcessorPort):
         include_logo: bool,
         date_text: Optional[str],
         frame_type: FrameType,
+        include_custom_text: bool = True,
+        custom_text: Optional[str] = None,
     ) -> bytes:
         """Create a 2x2 grid composite image (original layout)."""
         # Get frame configuration
@@ -277,8 +367,16 @@ class ImageProcessor(ImageProcessorPort):
             "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
         )
 
+        # Load background image if configured
+        if frame_config.get("use_background_image"):
+            bg_image_name = frame_config.get("background_image")
+            if bg_image_name:
+                bg_img = self._load_background_image(bg_image_name)
+                if bg_img:
+                    composite.paste(bg_img, (0, 0))
+
         # Apply diagonal gradient background for Rwanda style
-        if frame_config.get("is_diagonal_gradient"):
+        elif frame_config.get("is_diagonal_gradient"):
             try:
                 self._draw_rwanda_diagonal_background_fast(composite)
             except ImportError:
@@ -308,17 +406,31 @@ class ImageProcessor(ImageProcessorPort):
                 logger.error(f"Failed to process photo {i}: {e}")
                 raise
 
+        # Determine text colors based on background
+        dark_bg_frames = (
+            FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL,
+            FrameType.RWANDA_MISSION_1, FrameType.RWANDA_MISSION_2
+        )
+        if frame_type in dark_bg_frames:
+            text_color = "#FFFFFF"
+            shadow_color = "#000000"
+        else:
+            text_color = "#333333"
+            shadow_color = "#888888"
+
+        # Add custom text if enabled (above date)
+        if include_custom_text and custom_text:
+            self._add_custom_text_2x2(
+                composite, custom_text, frame_config, text_color, shadow_color
+            )
+
         # Add date stamp
         if include_date:
-            date_text = date_text or datetime.now().strftime("%Y.%m.%d")
-            # White text for dark backgrounds
-            if frame_type in (FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL):
-                text_color = "#FFFFFF"
-                shadow_color = "#000000"
-            else:
-                text_color = "#333333"
-                shadow_color = "#888888"
-            self._add_date_stamp(composite, date_text, frame_config, text_color, shadow_color)
+            date_text = date_text or datetime.now().strftime("%Y.%m.%d %H:%M")
+            self._add_date_stamp(
+                composite, date_text, frame_config, text_color, shadow_color,
+                has_custom_text=include_custom_text and bool(custom_text)
+            )
 
         # Add logo (placeholder for future implementation)
         if include_logo:
@@ -340,6 +452,8 @@ class ImageProcessor(ImageProcessorPort):
         include_logo: bool,
         date_text: Optional[str],
         frame_type: FrameType,
+        include_custom_text: bool = True,
+        custom_text: Optional[str] = None,
     ) -> bytes:
         """Create a 1x4 strip composite image (two identical strips side-by-side)."""
         # Get frame configuration
@@ -353,8 +467,16 @@ class ImageProcessor(ImageProcessorPort):
             "RGB", (self.COMPOSITE_WIDTH, self.COMPOSITE_HEIGHT), bg_color
         )
 
+        # Load background image if configured
+        if frame_config.get("use_background_image"):
+            bg_image_name = frame_config.get("background_image")
+            if bg_image_name:
+                bg_img = self._load_background_image(bg_image_name)
+                if bg_img:
+                    composite.paste(bg_img, (0, 0))
+
         # Apply diagonal gradient background for Rwanda style
-        if frame_config.get("is_diagonal_gradient"):
+        elif frame_config.get("is_diagonal_gradient"):
             try:
                 self._draw_rwanda_diagonal_background_fast(composite)
             except ImportError:
@@ -386,17 +508,31 @@ class ImageProcessor(ImageProcessorPort):
                 logger.error(f"Failed to process photo {i}: {e}")
                 raise
 
-        # Add date stamp (centered at bottom)
+        # Determine text colors based on background
+        dark_bg_frames = (
+            FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL,
+            FrameType.RWANDA_MISSION_1, FrameType.RWANDA_MISSION_2
+        )
+        if frame_type in dark_bg_frames:
+            text_color = "#FFFFFF"
+            shadow_color = "#000000"
+        else:
+            text_color = "#333333"
+            shadow_color = "#888888"
+
+        # Add custom text if enabled (above date, on both sides)
+        if include_custom_text and custom_text:
+            self._add_custom_text_1x4(
+                composite, custom_text, frame_config, text_color, shadow_color
+            )
+
+        # Add date stamp (on both left and right strips)
         if include_date:
-            date_text = date_text or datetime.now().strftime("%Y.%m.%d")
-            # White text for dark backgrounds
-            if frame_type in (FrameType.FILM_STRIP, FrameType.RWANDA_DIAGONAL):
-                text_color = "#FFFFFF"
-                shadow_color = "#000000"
-            else:
-                text_color = "#333333"
-                shadow_color = "#888888"
-            self._add_date_stamp_1x4(composite, date_text, frame_config, text_color, shadow_color)
+            date_text = date_text or datetime.now().strftime("%Y.%m.%d %H:%M")
+            self._add_date_stamp_1x4(
+                composite, date_text, frame_config, text_color, shadow_color,
+                has_custom_text=include_custom_text and bool(custom_text)
+            )
 
         # Save to bytes
         output = io.BytesIO()
@@ -413,37 +549,113 @@ class ImageProcessor(ImageProcessorPort):
         frame_config: dict,
         text_color: str = "#333333",
         shadow_color: str = "#888888",
+        has_custom_text: bool = False,
     ) -> None:
-        """Add date stamp to bottom of 1x4 composite image."""
+        """Add date stamp to bottom of 1x4 composite image (on both left and right strips)."""
         draw = ImageDraw.Draw(img)
 
-        # Try to use a nice font, fall back to default
+        # Larger font size (increased from 28 to 40)
         try:
             font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40
             )
         except OSError:
             try:
-                font = ImageFont.truetype("arial.ttf", 28)
+                font = ImageFont.truetype("arial.ttf", 40)
             except OSError:
                 font = ImageFont.load_default()
 
-        # Calculate position (center bottom)
-        bbox = draw.textbbox((0, 0), date_text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        x = (self.COMPOSITE_WIDTH - text_width) // 2
-
+        # Calculate strip positions
         padding = frame_config["padding"]
         photo_gap = frame_config["photo_gap"]
+        strip_gap = 24
+        available_width = self.COMPOSITE_WIDTH - (2 * padding) - strip_gap
+        strip_width = available_width // 2
+
+        # Calculate Y position
         photo_width, photo_height = self._calculate_1x4_dimensions(frame_config)
         photos_bottom = padding + (4 * photo_height) + (3 * photo_gap)
         bottom_margin = frame_config["bottom_margin"]
-        y = photos_bottom + (bottom_margin - text_height) // 2
 
-        # Draw text with slight shadow for readability
-        draw.text((x + 1, y + 1), date_text, font=font, fill=shadow_color)
-        draw.text((x, y), date_text, font=font, fill=text_color)
+        bbox = draw.textbbox((0, 0), date_text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        # If custom text is present, date goes below it
+        if has_custom_text:
+            # Custom text takes upper portion, date takes lower portion
+            y = photos_bottom + bottom_margin - text_height - 15
+        else:
+            y = photos_bottom + (bottom_margin - text_height) // 2
+
+        # Draw on LEFT strip
+        left_center_x = padding + strip_width // 2
+        left_x = left_center_x - text_width // 2
+        draw.text((left_x + 1, y + 1), date_text, font=font, fill=shadow_color)
+        draw.text((left_x, y), date_text, font=font, fill=text_color)
+
+        # Draw on RIGHT strip
+        right_center_x = padding + strip_width + strip_gap + strip_width // 2
+        right_x = right_center_x - text_width // 2
+        draw.text((right_x + 1, y + 1), date_text, font=font, fill=shadow_color)
+        draw.text((right_x, y), date_text, font=font, fill=text_color)
+
+    def _add_custom_text_1x4(
+        self,
+        img: Image.Image,
+        custom_text: str,
+        frame_config: dict,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+    ) -> None:
+        """Add custom text to bottom of 1x4 composite image (on both strips)."""
+        draw = ImageDraw.Draw(img)
+
+        # Font for custom text (slightly smaller than date)
+        try:
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32
+            )
+        except OSError:
+            try:
+                font = ImageFont.truetype("arial.ttf", 32)
+            except OSError:
+                font = ImageFont.load_default()
+
+        # Calculate strip positions
+        padding = frame_config["padding"]
+        photo_gap = frame_config["photo_gap"]
+        strip_gap = 24
+        available_width = self.COMPOSITE_WIDTH - (2 * padding) - strip_gap
+        strip_width = available_width // 2
+
+        # Calculate Y position (above date)
+        photo_width, photo_height = self._calculate_1x4_dimensions(frame_config)
+        photos_bottom = padding + (4 * photo_height) + (3 * photo_gap)
+
+        # Split text into lines
+        lines = custom_text.split('\n')
+        line_height = 36  # Approximate line height
+
+        # Start position for custom text
+        start_y = photos_bottom + 15
+
+        for line_idx, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            y = start_y + line_idx * line_height
+
+            # Draw on LEFT strip
+            left_center_x = padding + strip_width // 2
+            left_x = left_center_x - text_width // 2
+            draw.text((left_x + 1, y + 1), line, font=font, fill=shadow_color)
+            draw.text((left_x, y), line, font=font, fill=text_color)
+
+            # Draw on RIGHT strip
+            right_center_x = padding + strip_width + strip_gap + strip_width // 2
+            right_x = right_center_x - text_width // 2
+            draw.text((right_x + 1, y + 1), line, font=font, fill=shadow_color)
+            draw.text((right_x, y), line, font=font, fill=text_color)
 
     def _draw_rwanda_diagonal_background(self, img: Image.Image) -> None:
         """Draw Rwanda flag diagonal gradient background.
@@ -593,18 +805,18 @@ class ImageProcessor(ImageProcessorPort):
 
         return img.crop((left, top, right, bottom))
 
-    def _add_date_stamp(
+    def _add_custom_text_2x2(
         self,
         img: Image.Image,
-        date_text: str,
-        frame_config: Optional[dict] = None,
+        custom_text: str,
+        frame_config: dict,
         text_color: str = "#333333",
         shadow_color: str = "#888888",
     ) -> None:
-        """Add date stamp to bottom of image."""
+        """Add custom text to bottom of 2x2 composite image (above date)."""
         draw = ImageDraw.Draw(img)
 
-        # Try to use a nice font, fall back to default
+        # Font for custom text
         try:
             font = ImageFont.truetype(
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36
@@ -612,6 +824,51 @@ class ImageProcessor(ImageProcessorPort):
         except OSError:
             try:
                 font = ImageFont.truetype("arial.ttf", 36)
+            except OSError:
+                font = ImageFont.load_default()
+
+        # Calculate Y position
+        padding = frame_config["padding"]
+        photo_height = self._calculate_photo_dimensions(frame_config)[1]
+        photos_bottom = padding + (photo_height * 2) + frame_config["photo_gap"]
+
+        # Split text into lines
+        lines = custom_text.split('\n')
+        line_height = 42  # Approximate line height
+
+        # Start position for custom text (at top of bottom margin area)
+        start_y = photos_bottom + 15
+
+        for line_idx, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            x = (self.COMPOSITE_WIDTH - text_width) // 2
+            y = start_y + line_idx * line_height
+
+            # Draw text with shadow
+            draw.text((x + 2, y + 2), line, font=font, fill=shadow_color)
+            draw.text((x, y), line, font=font, fill=text_color)
+
+    def _add_date_stamp(
+        self,
+        img: Image.Image,
+        date_text: str,
+        frame_config: Optional[dict] = None,
+        text_color: str = "#333333",
+        shadow_color: str = "#888888",
+        has_custom_text: bool = False,
+    ) -> None:
+        """Add date stamp to bottom of image."""
+        draw = ImageDraw.Draw(img)
+
+        # Larger font size (increased from 36 to 48)
+        try:
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48
+            )
+        except OSError:
+            try:
+                font = ImageFont.truetype("arial.ttf", 48)
             except OSError:
                 font = ImageFont.load_default()
 
@@ -627,9 +884,14 @@ class ImageProcessor(ImageProcessorPort):
             padding = frame_config["padding"]
             photo_height = self._calculate_photo_dimensions(frame_config)[1]
             photos_bottom = padding + (photo_height * 2) + frame_config["photo_gap"]
-            y = photos_bottom + (bottom_margin - text_height) // 2
+
+            if has_custom_text:
+                # Date goes at the bottom, below custom text
+                y = photos_bottom + bottom_margin - text_height - 15
+            else:
+                y = photos_bottom + (bottom_margin - text_height) // 2
         else:
-            y = self.COMPOSITE_HEIGHT - 50
+            y = self.COMPOSITE_HEIGHT - 60
 
         # Draw text with slight shadow for readability
         draw.text((x + 2, y + 2), date_text, font=font, fill=shadow_color)
@@ -674,6 +936,8 @@ class ImageProcessor(ImageProcessorPort):
                 include_logo=opts.include_logo,
                 frame_type=opts.frame_type,
                 layout_type=opts.layout_type,
+                include_custom_text=opts.include_custom_text,
+                custom_text=opts.custom_text,
             )
 
             # Write to output path

@@ -7,7 +7,18 @@ import { api } from "../services/api";
 import { LoadingSpinner, CopySelector } from "../components/common";
 
 // Frame type options
-type FrameType = "classic" | "film_strip" | "polaroid" | "minimal" | "rounded" | "rwanda_diagonal";
+type FrameType =
+  | "classic"
+  | "film_strip"
+  | "polaroid"
+  | "minimal"
+  | "rounded"
+  | "rwanda_diagonal"
+  | "rwanda_grid_2x2"
+  | "rwanda_grid_1x4"
+  | "rwanda_mission_1"
+  | "rwanda_mission_2"
+  | "rwanda_mission_3";
 
 interface FrameOption {
   id: FrameType;
@@ -22,6 +33,11 @@ const FRAME_OPTIONS: FrameOption[] = [
   { id: "minimal", labelKey: "preview.frames.minimal", icon: "⬜" },
   { id: "rounded", labelKey: "preview.frames.rounded", icon: "🔲" },
   { id: "rwanda_diagonal", labelKey: "preview.frames.rwandaDiagonal", icon: "🇷🇼" },
+  { id: "rwanda_grid_2x2", labelKey: "preview.frames.rwandaGrid2x2", icon: "🏔️" },
+  { id: "rwanda_grid_1x4", labelKey: "preview.frames.rwandaGrid1x4", icon: "🎨" },
+  { id: "rwanda_mission_1", labelKey: "preview.frames.rwandaMission1", icon: "🌍" },
+  { id: "rwanda_mission_2", labelKey: "preview.frames.rwandaMission2", icon: "🌊" },
+  { id: "rwanda_mission_3", labelKey: "preview.frames.rwandaMission3", icon: "✝️" },
 ];
 
 export function PreviewPage() {
@@ -35,6 +51,7 @@ export function PreviewPage() {
   const [copies, setCopies] = useState(1);
   const [includeDate, setIncludeDate] = useState(true);
   const [includeLogo, setIncludeLogo] = useState(settings.logoEnabled);
+  const [includeCustomText, setIncludeCustomText] = useState(true);
   const [frameType, setFrameType] = useState<FrameType>("classic");
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +71,7 @@ export function PreviewPage() {
           includeLogo,
           frameType,
           layoutType,
+          includeCustomText,
         );
 
         if (response.success && response.data) {
@@ -72,7 +90,7 @@ export function PreviewPage() {
 
     generateComposite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, includeDate, includeLogo, frameType, layoutType]);
+  }, [sessionId, includeDate, includeLogo, includeCustomText, frameType, layoutType]);
 
   const handlePrint = async () => {
     if (!sessionId) return;
@@ -186,6 +204,16 @@ export function PreviewPage() {
               className="w-4 h-4 rounded accent-primary"
             />
             <span>{t("preview.includeLogo")}</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              checked={includeCustomText}
+              onChange={(e) => setIncludeCustomText(e.target.checked)}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <span>{t("preview.includeCustomText")}</span>
           </label>
         </div>
       </div>

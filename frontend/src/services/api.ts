@@ -205,12 +205,16 @@ class ApiClient {
     includeLogo: boolean = false,
     frameType: string = "classic",
     layoutType: string = "2x2",
+    includeCustomText: boolean = true,
+    customText: string = "2026 Somang Youth\nRwanda missionary",
   ): Promise<ApiResponse<CompositeResult>> {
     return this.request(`/session/${sessionId}/composite`, {
       method: "POST",
       body: JSON.stringify({
         include_date: includeDate,
         include_logo: includeLogo,
+        include_custom_text: includeCustomText,
+        custom_text: customText,
         frame_type: frameType,
         layout_type: layoutType,
       }),

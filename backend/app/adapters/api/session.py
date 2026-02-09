@@ -49,7 +49,9 @@ class CompositeRequest(BaseModel):
 
     include_logo: bool = True
     include_date: bool = True
-    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded
+    include_custom_text: bool = True
+    custom_text: str = "2026 Somang Youth\nRwanda missionary"
+    frame_type: str = "classic"  # classic, film_strip, polaroid, minimal, rounded, rwanda_*
     layout_type: str = "2x2"  # 2x2 (grid) or 1x4 (vertical strip duplicated)
 
 
@@ -325,6 +327,8 @@ async def generate_composite(
             session_id=session_id,
             include_date=request.include_date,
             include_logo=request.include_logo,
+            include_custom_text=request.include_custom_text,
+            custom_text=request.custom_text,
             frame_type=request.frame_type,
             layout_type=request.layout_type,
         )
