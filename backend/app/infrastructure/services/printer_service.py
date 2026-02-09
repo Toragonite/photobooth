@@ -62,20 +62,52 @@ class PrinterService(PrinterPort):
 
     def __init__(self):
         self.mock_mode = settings.printer_mock_mode
-        self.printer_names = settings.active_printer_names
         self.selection_strategy = settings.printer_selection_strategy
+        self.auto_discover = settings.printer_auto_discover
+        self.name_pattern = settings.printer_name_pattern.lower()
         self._cups = None
         self._mock_job_counter = 1000
         self._round_robin_index = 0
+        self._discovered_printers: List[str] = []
+        self._last_troubleshoot_attempt = 0
 
         if not self.mock_mode:
             try:
                 import cups
 
                 self._cups = cups.Connection()
+
+                # Always try to auto-discover printers from CUPS first
+                self._discovered_printers = self._discover_printers()
+
+                if self._discovered_printers:
+                    logger.info(
+                        f"Auto-discovered {len(self._discovered_printers)} printer(s): "
+                        f"{self._discovered_printers}"
+                    )
+                else:
+                    # No printers found - attempt auto-troubleshooting
+                    logger.warning(
+                        f"No printers matching pattern '{self.name_pattern}' found in CUPS. "
+                        "Attempting auto-troubleshooting..."
+                    )
+                    self._auto_troubleshoot()
+
+                    # Re-discover after troubleshooting
+                    self._discovered_printers = self._discover_printers()
+                    if self._discovered_printers:
+                        logger.info(
+                            f"After troubleshooting, discovered: {self._discovered_printers}"
+                        )
+                    else:
+                        logger.error(
+                            "No printers found after troubleshooting. "
+                            "Please check USB connections and run manual troubleshooting."
+                        )
+
                 logger.info(
                     f"CUPS connection established. "
-                    f"Configured printers: {self.printer_names}, "
+                    f"Active printers: {self.printer_names}, "
                     f"strategy: {self.selection_strategy}"
                 )
             except ImportError:
@@ -86,15 +118,292 @@ class PrinterService(PrinterPort):
                 self.mock_mode = True
 
         if self.mock_mode:
+            # In mock mode, create mock printers for testing
+            self._discovered_printers = ["SelphyCP1500-Mock", "SelphyCP1500-Mock-2"]
             logger.info(
                 f"Printer service running in MOCK mode. "
-                f"Configured printers: {self.printer_names}"
+                f"Active printers: {self.printer_names}"
             )
 
+    def _discover_printers(self) -> List[str]:
+        """Discover printers from CUPS matching the name pattern."""
+        if self._cups is None:
+            return []
+
+        try:
+            cups_printers = self._cups.getPrinters()
+            discovered = [
+                name for name in cups_printers.keys()
+                if self.name_pattern in name.lower()
+            ]
+            # Sort to ensure consistent ordering (SelphyCP1500, SelphyCP1500-2, etc.)
+            return sorted(discovered)
+        except Exception as e:
+            logger.error(f"Failed to discover printers: {e}")
+            return []
+
+    def refresh_printers(self, auto_troubleshoot: bool = False) -> List[str]:
+        """Refresh the list of discovered printers from CUPS.
+
+        Args:
+            auto_troubleshoot: If True and no printers found, attempt auto-troubleshooting
+        """
+        if self.mock_mode:
+            return self.printer_names
+
+        self._discovered_printers = self._discover_printers()
+        logger.info(f"Refreshed printer list: {self._discovered_printers}")
+
+        # If no printers found and auto_troubleshoot requested
+        if not self._discovered_printers and auto_troubleshoot:
+            logger.warning("No printers found during refresh, attempting auto-troubleshoot...")
+            self._auto_troubleshoot()
+            self._discovered_printers = self._discover_printers()
+
+        return self.printer_names
+
+    def _auto_troubleshoot(self) -> bool:
+        """Attempt automatic troubleshooting when no printers are found.
+
+        Returns:
+            True if troubleshooting was attempted, False if skipped
+        """
+        import time
+        import subprocess
+
+        # Rate limit: don't troubleshoot more than once per minute
+        current_time = time.time()
+        if current_time - self._last_troubleshoot_attempt < 60:
+            logger.debug("Skipping auto-troubleshoot (rate limited)")
+            return False
+
+        self._last_troubleshoot_attempt = current_time
+        logger.info("Starting automatic printer troubleshooting...")
+
+        try:
+            # Step 1: Check if ipp-usb is interfering
+            result = subprocess.run(
+                ["systemctl", "is-active", "ipp-usb"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.stdout.strip() == "active":
+                logger.info("Auto-troubleshoot: Stopping ipp-usb service...")
+                subprocess.run(
+                    ["sudo", "systemctl", "stop", "ipp-usb"],
+                    capture_output=True,
+                    timeout=10
+                )
+                subprocess.run(
+                    ["sudo", "pkill", "-9", "ipp-usb"],
+                    capture_output=True,
+                    timeout=5
+                )
+                time.sleep(1)
+
+            # Step 2: Load usblp module
+            logger.info("Auto-troubleshoot: Loading usblp module...")
+            subprocess.run(
+                ["sudo", "modprobe", "usblp"],
+                capture_output=True,
+                timeout=5
+            )
+
+            # Step 3: Find and rebind Canon USB devices
+            logger.info("Auto-troubleshoot: Rebinding USB devices...")
+            self._rebind_usb_devices()
+
+            # Step 4: Wait for devices to settle
+            time.sleep(3)
+
+            # Step 5: Try to auto-register any detected printers
+            logger.info("Auto-troubleshoot: Checking for unregistered printers...")
+            self._auto_register_printers()
+
+            logger.info("Auto-troubleshoot: Complete")
+            return True
+
+        except Exception as e:
+            logger.error(f"Auto-troubleshoot failed: {e}")
+            return False
+
+    def _rebind_usb_devices(self):
+        """Rebind Canon USB devices to reset their state."""
+        import subprocess
+        import os
+
+        canon_vendor_id = "04a9"
+
+        try:
+            # Find USB devices with Canon vendor ID
+            usb_devices_path = "/sys/bus/usb/devices"
+            if not os.path.exists(usb_devices_path):
+                return
+
+            for device in os.listdir(usb_devices_path):
+                vendor_path = os.path.join(usb_devices_path, device, "idVendor")
+                if os.path.exists(vendor_path):
+                    try:
+                        with open(vendor_path, "r") as f:
+                            vendor = f.read().strip()
+                        if vendor == canon_vendor_id:
+                            logger.info(f"Rebinding USB device: {device}")
+                            # Unbind
+                            unbind_path = "/sys/bus/usb/drivers/usb/unbind"
+                            subprocess.run(
+                                ["sudo", "tee", unbind_path],
+                                input=device.encode(),
+                                capture_output=True,
+                                timeout=5
+                            )
+                            import time
+                            time.sleep(1)
+                            # Bind
+                            bind_path = "/sys/bus/usb/drivers/usb/bind"
+                            subprocess.run(
+                                ["sudo", "tee", bind_path],
+                                input=device.encode(),
+                                capture_output=True,
+                                timeout=5
+                            )
+                    except Exception as e:
+                        logger.debug(f"Could not check device {device}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to rebind USB devices: {e}")
+
+    def _auto_register_printers(self):
+        """Auto-register any detected but unregistered Canon Selphy printers."""
+        import subprocess
+
+        try:
+            # Get list of USB-connected Canon printers
+            result = subprocess.run(
+                ["lsusb", "-v"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            # Parse serial numbers from lsusb output
+            serials = []
+            lines = result.stdout.split("\n")
+            in_canon_device = False
+            for line in lines:
+                if "04a9:3302" in line:  # Canon Selphy CP1500
+                    in_canon_device = True
+                elif in_canon_device and "iSerial" in line:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        serials.append(parts[-1])
+                    in_canon_device = False
+
+            if not serials:
+                logger.info("No Canon Selphy CP1500 detected on USB")
+                return
+
+            # Get already registered printer serials
+            registered_serials = set()
+            if self._cups:
+                try:
+                    for name, info in self._cups.getPrinters().items():
+                        uri = info.get("device-uri", "")
+                        if "serial=" in uri:
+                            serial = uri.split("serial=")[1].split("&")[0]
+                            registered_serials.add(serial)
+                except Exception:
+                    pass
+
+            # Register unregistered printers
+            for serial in serials:
+                if serial in registered_serials:
+                    logger.debug(f"Printer with serial {serial} already registered")
+                    continue
+
+                # Determine printer name
+                existing_count = len([
+                    n for n in (self._cups.getPrinters().keys() if self._cups else [])
+                    if self.name_pattern in n.lower()
+                ])
+                printer_name = "SelphyCP1500"
+                if existing_count > 0:
+                    printer_name = f"SelphyCP1500-{existing_count + 1}"
+
+                uri = f"usb://Canon/SELPHY%20CP1500?serial={serial}"
+
+                logger.info(f"Auto-registering printer: {printer_name} (serial: {serial})")
+
+                try:
+                    # Try using existing PPD first
+                    ppd_path = "/etc/cups/ppd/SelphyCP1500.ppd"
+                    import os
+                    if os.path.exists(ppd_path):
+                        subprocess.run(
+                            ["sudo", "lpadmin", "-p", printer_name, "-E",
+                             "-v", uri, "-P", ppd_path,
+                             "-D", f"Canon Selphy CP1500 (Serial: {serial})",
+                             "-L", "PhotoBooth"],
+                            capture_output=True,
+                            timeout=15
+                        )
+                    else:
+                        # Use gutenprint driver
+                        subprocess.run(
+                            ["sudo", "lpadmin", "-p", printer_name, "-E",
+                             "-v", uri,
+                             "-m", "gutenprint.5.3://canon-cp1300/expert",
+                             "-D", f"Canon Selphy CP1500 (Serial: {serial})",
+                             "-L", "PhotoBooth"],
+                            capture_output=True,
+                            timeout=15
+                        )
+
+                    # Enable the printer
+                    subprocess.run(
+                        ["sudo", "cupsenable", printer_name],
+                        capture_output=True,
+                        timeout=5
+                    )
+                    subprocess.run(
+                        ["sudo", "cupsaccept", printer_name],
+                        capture_output=True,
+                        timeout=5
+                    )
+
+                    logger.info(f"Successfully registered printer: {printer_name}")
+
+                except Exception as e:
+                    logger.error(f"Failed to register printer {printer_name}: {e}")
+
+        except Exception as e:
+            logger.error(f"Auto-register printers failed: {e}")
+
     @property
-    def primary_printer_name(self) -> str:
-        """Get the first configured printer name."""
-        return self.printer_names[0]
+    def printer_names(self) -> List[str]:
+        """Get list of active printer names.
+
+        Priority:
+        1. Explicit printer_names from settings (if set)
+        2. Auto-discovered printers from CUPS (primary method)
+        3. Empty list if nothing found (no fallback to potentially non-existent printer)
+        """
+        if settings.printer_names:
+            return settings.printer_names
+        if self._discovered_printers:
+            return self._discovered_printers
+        # Return empty list - don't fallback to a potentially non-existent printer
+        return []
+
+    @property
+    def has_printers(self) -> bool:
+        """Check if any printers are available."""
+        return len(self.printer_names) > 0
+
+    @property
+    def primary_printer_name(self) -> Optional[str]:
+        """Get the first available printer name, or None if no printers."""
+        names = self.printer_names
+        return names[0] if names else None
 
     def is_available(self, printer_name: Optional[str] = None) -> bool:
         """Check if a specific printer (or any configured printer) is available."""
@@ -218,8 +527,30 @@ class PrinterService(PrinterPort):
     async def print_file(
         self, file_path: str, copies: int = 1, printer_name: Optional[str] = None
     ) -> PrintResult:
-        """Submit a print job to a specific printer."""
-        target = printer_name or self.primary_printer_name
+        """Submit a print job to a specific printer.
+
+        If no printers are available, attempts auto-troubleshooting first.
+        """
+        # If no specific printer requested, select the best available one
+        if printer_name:
+            target = printer_name
+        else:
+            target = self._select_printer_sync()
+
+        # If still no printer available, try auto-troubleshooting
+        if not target:
+            logger.warning("No printers available for print job. Attempting auto-troubleshoot...")
+            self._auto_troubleshoot()
+            self._discovered_printers = self._discover_printers()
+            target = self._select_printer_sync()
+
+            if not target:
+                return PrintResult(
+                    success=False,
+                    printer_name=None,
+                    error_code=ErrorCode.PRINTER_OFFLINE,
+                    error_message="No printers available. Please check USB connections and printer power.",
+                )
 
         if self.mock_mode:
             return await self._mock_print(file_path, copies, target)
@@ -228,12 +559,17 @@ class PrinterService(PrinterPort):
             # Check printer is available
             status = self.get_printer_info(target)
             if not status:
-                return PrintResult(
-                    success=False,
-                    printer_name=target,
-                    error_code=ErrorCode.PRINTER_OFFLINE,
-                    error_message=f"Printer '{target}' not found",
-                )
+                # Try to auto-discover again
+                self.refresh_printers(auto_troubleshoot=True)
+                status = self.get_printer_info(target)
+
+                if not status:
+                    return PrintResult(
+                        success=False,
+                        printer_name=target,
+                        error_code=ErrorCode.PRINTER_OFFLINE,
+                        error_message=f"Printer '{target}' not found",
+                    )
 
             if status.state == PrinterState.OFFLINE:
                 return PrintResult(

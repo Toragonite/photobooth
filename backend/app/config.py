@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     # Printer
     printer_mock_mode: bool = True  # Use mock printer for development
     printer_name: str = "SelphyCP1500"  # Primary printer (backward compat)
-    printer_names: List[str] = []  # Multiple printers; if empty, falls back to printer_name
+    printer_names: List[str] = []  # Multiple printers; if empty, uses auto-discovery or fallback
+    printer_auto_discover: bool = True  # Auto-discover Selphy printers from CUPS
+    printer_name_pattern: str = "Selphy"  # Pattern to match printer names (case-insensitive)
     printer_selection_strategy: Literal["round-robin", "least-busy", "failover"] = "least-busy"
     print_timeout_seconds: int = 120
     max_retry_count: int = 3
@@ -46,8 +48,16 @@ class Settings(BaseSettings):
 
     @property
     def active_printer_names(self) -> List[str]:
-        """Get list of active printer names. Falls back to single printer_name."""
-        return self.printer_names if self.printer_names else [self.printer_name]
+        """Get list of active printer names.
+
+        Priority:
+        1. Explicit printer_names list (if set)
+        2. Auto-discovered printers from CUPS (if printer_auto_discover=True)
+        3. Fallback to single printer_name
+        """
+        if self.printer_names:
+            return self.printer_names
+        return [self.printer_name]  # Default fallback; discovery happens in service
 
     # Security
     secret_key: str = "change-me-in-production-very-secret-key"
