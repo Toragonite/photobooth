@@ -13,6 +13,9 @@ PHOTOBOOTH_DIR="${PHOTOBOOTH_DIR:-/home/toragonite/Documents/photobooth}"
 PRINTER_NAME="${PRINTER_NAME:-SelphyCP1500}"
 AP_CONNECTION_NAME="photobooth-ap"
 WIFI_INTERFACE="wlan0"
+CANON_VENDOR_ID="04a9"
+SELPHY_PRODUCT_ID="3302"
+GUTENPRINT_DRIVER="gutenprint.5.3://canon-cp1300/expert"
 
 # Colors
 RED='\033[0;31m'
@@ -53,15 +56,17 @@ print_status_bar() {
         network_mode="${GREEN}Client${NC}"
     fi
 
-    # Printer status - check USB connection first
-    if ! lsusb 2>/dev/null | grep -qi "canon"; then
+    # Printer status - check USB connection first (multi-printer aware)
+    local usb_count=$(lsusb 2>/dev/null | grep -ci "${CANON_VENDOR_ID}:${SELPHY_PRODUCT_ID}" || echo 0)
+    local cups_ready=$(lpstat -p 2>/dev/null | grep -i selphy | grep -ci "idle" || echo 0)
+    local cups_total=$(lpstat -p 2>/dev/null | grep -ci selphy || echo 0)
+
+    if [[ $usb_count -eq 0 ]]; then
         printer_status="${RED}Disconnected${NC}"
-    elif lpstat -p "$PRINTER_NAME" 2>/dev/null | grep -qi "idle"; then
-        printer_status="${GREEN}Ready${NC}"
-    elif lpstat -p "$PRINTER_NAME" 2>/dev/null | grep -qi "printing"; then
-        printer_status="${YELLOW}Printing${NC}"
-    elif lpstat -p "$PRINTER_NAME" &>/dev/null; then
-        printer_status="${YELLOW}Configured${NC}"
+    elif [[ $cups_ready -gt 0 ]]; then
+        printer_status="${GREEN}Ready (${cups_ready}/${usb_count})${NC}"
+    elif [[ $cups_total -gt 0 ]]; then
+        printer_status="${YELLOW}Configured (${cups_total})${NC}"
     else
         printer_status="${RED}Not Setup${NC}"
     fi
@@ -448,63 +453,110 @@ network_show_credentials() {
 }
 
 # ============================================
-# PRINTER MANAGEMENT
+# PRINTER MANAGEMENT (Multi-Printer Support)
 # ============================================
 printer_menu() {
     while true; do
         clear_screen
         print_header
 
+        # Show printer summary
+        local usb_count=$(lsusb 2>/dev/null | grep -ci "${CANON_VENDOR_ID}:${SELPHY_PRODUCT_ID}" || echo 0)
+        local cups_count=$(lpstat -p 2>/dev/null | grep -ci selphy || echo 0)
+
         echo -e "${BOLD}Printer Management${NC}"
+        echo -e "USB Connected: ${CYAN}$usb_count${NC} | CUPS Registered: ${CYAN}$cups_count${NC}"
         echo ""
-        echo "  1. View printer status"
+        echo "  1. View all printers status"
         echo "  2. View print queue"
         echo "  3. Cancel all print jobs"
         echo "  4. Print test page"
         echo "  5. Clear printer errors"
         echo "  6. Restart CUPS service"
         echo ""
+        echo -e "  ${CYAN}7. Register new printer${NC}"
+        echo -e "  ${CYAN}8. Run printer troubleshooter${NC}"
+        echo -e "  ${CYAN}9. Disable ipp-usb (fix USB conflict)${NC}"
+        echo ""
         echo "  0. Back to Main Menu"
         echo ""
-        echo -n "Select [0-6]: "
+        echo -n "Select [0-9]: "
         read -r choice
 
         case $choice in
-            1) printer_status ;;
+            1) printer_status_all ;;
             2) printer_queue ;;
             3) printer_cancel_all ;;
-            4) printer_test_page ;;
-            5) printer_clear_errors ;;
+            4) printer_test_page_select ;;
+            5) printer_clear_errors_all ;;
             6) printer_restart_cups ;;
+            7) printer_register_new ;;
+            8) printer_troubleshoot ;;
+            9) printer_disable_ipp_usb ;;
             0) return ;;
             *) ;;
         esac
     done
 }
 
-printer_status() {
+printer_status_all() {
     clear_screen
-    echo -e "${BOLD}Printer Status${NC}"
+    echo -e "${BOLD}All Printers Status${NC}"
     echo ""
 
-    echo -e "${CYAN}=== Printer Info ===${NC}"
-    lpstat -p "$PRINTER_NAME" 2>/dev/null || echo "  Printer not configured"
-
-    echo ""
-    echo -e "${CYAN}=== CUPS Status ===${NC}"
-    systemctl status cups --no-pager -l 2>/dev/null | head -10 || echo "  CUPS not running"
-
-    echo ""
-    echo -e "${CYAN}=== USB Devices ===${NC}"
-    lsusb 2>/dev/null | grep -i "canon\|selphy" || echo "  No Canon printer detected"
-
-    echo ""
-    echo -e "${CYAN}=== usblp Module ===${NC}"
-    if lsmod | grep -q usblp; then
-        echo -e "  ${RED}usblp is loaded (may cause issues)${NC}"
+    echo -e "${CYAN}=== USB Connected Printers ===${NC}"
+    local usb_printers=$(lsusb 2>/dev/null | grep -i "${CANON_VENDOR_ID}:${SELPHY_PRODUCT_ID}")
+    if [[ -n "$usb_printers" ]]; then
+        echo "$usb_printers"
+        echo ""
+        # Show serial numbers
+        echo "Serial Numbers:"
+        lsusb -v 2>/dev/null | grep -A 20 "${CANON_VENDOR_ID}:${SELPHY_PRODUCT_ID}" | grep iSerial | awk '{print "  " $3}'
     else
-        echo -e "  ${GREEN}usblp is not loaded (good)${NC}"
+        echo "  No Canon Selphy CP1500 detected on USB"
     fi
+
+    echo ""
+    echo -e "${CYAN}=== CUPS Registered Printers ===${NC}"
+    local cups_printers=$(lpstat -p 2>/dev/null | grep -i selphy)
+    if [[ -n "$cups_printers" ]]; then
+        while IFS= read -r line; do
+            local pname=$(echo "$line" | awk '{print $2}')
+            local pstatus=$(echo "$line" | grep -oP '(idle|printing|disabled)' || echo "unknown")
+            local uri=$(lpstat -v "$pname" 2>/dev/null | awk '{print $NF}')
+            local serial=$(echo "$uri" | grep -oP 'serial=\K[^&]+' || echo "N/A")
+
+            echo ""
+            echo -e "  ${BOLD}$pname${NC}"
+            echo "    Status: $pstatus"
+            echo "    Serial: $serial"
+            echo "    URI: $uri"
+        done <<< "$cups_printers"
+    else
+        echo "  No Selphy printers registered in CUPS"
+    fi
+
+    echo ""
+    echo -e "${CYAN}=== Service Status ===${NC}"
+    echo -n "  CUPS: "
+    systemctl is-active cups 2>/dev/null || echo "inactive"
+    echo -n "  ipp-usb: "
+    systemctl is-active ipp-usb 2>/dev/null || echo "inactive"
+
+    echo ""
+    echo -e "${CYAN}=== USB Driver ===${NC}"
+    local driver_status=$(lsusb -t 2>/dev/null | grep -A 2 "Printer" | grep -oP 'Driver=\K\w+' | head -1)
+    if [[ "$driver_status" == "usblp" ]]; then
+        echo -e "  Driver: ${GREEN}usblp (correct)${NC}"
+    elif [[ "$driver_status" == "usbfs" ]]; then
+        echo -e "  Driver: ${RED}usbfs (ipp-usb conflict - use option 9 to fix)${NC}"
+    else
+        echo "  Driver: $driver_status"
+    fi
+
+    echo ""
+    echo -e "${CYAN}=== /dev/usb/lp* Devices ===${NC}"
+    ls -la /dev/usb/lp* 2>/dev/null || echo "  No /dev/usb/lp* devices (may need to disable ipp-usb)"
 
     press_enter
 }
@@ -538,35 +590,276 @@ printer_cancel_all() {
     press_enter
 }
 
-printer_test_page() {
-    if confirm_action "Print a test page? This will use paper and ink."; then
-        clear_screen
-        echo -e "${BOLD}Printing test page...${NC}"
-        echo ""
+printer_test_page_select() {
+    clear_screen
+    echo -e "${BOLD}Print Test Page${NC}"
+    echo ""
 
-        # Create simple test file
-        echo "PhotoBooth Test Print - $(date)" | lp -d "$PRINTER_NAME" 2>/dev/null
+    # List all Selphy printers
+    local printers=()
+    local i=1
 
-        if [[ $? -eq 0 ]]; then
-            echo -e "${GREEN}Test page sent to printer.${NC}"
-        else
-            echo -e "${RED}Failed to send test page.${NC}"
+    echo "Select printer:"
+    while IFS= read -r line; do
+        local pname=$(echo "$line" | awk '{print $2}')
+        [[ -z "$pname" ]] && continue
+        printers+=("$pname")
+        local pstatus=$(echo "$line" | grep -oP '(idle|printing|disabled)' || echo "unknown")
+        echo "  $i. $pname ($pstatus)"
+        ((i++))
+    done < <(lpstat -p 2>/dev/null | grep -i selphy)
+
+    if [[ ${#printers[@]} -eq 0 ]]; then
+        echo "  No Selphy printers found."
+        press_enter
+        return
+    fi
+
+    echo "  0. Cancel"
+    echo ""
+    echo -n "Select [0-${#printers[@]}]: "
+    read -r selection
+
+    if [[ "$selection" == "0" || -z "$selection" ]]; then
+        return
+    fi
+
+    if [[ $selection -ge 1 && $selection -le ${#printers[@]} ]]; then
+        local selected="${printers[$((selection-1))]}"
+
+        if confirm_action "Print test page to $selected? This will use paper and ink."; then
+            echo ""
+            echo "Printing test page to $selected..."
+
+            TEST_IMAGE="/tmp/photobooth_test_$(date +%s).jpg"
+
+            if command -v convert &>/dev/null; then
+                convert -size 1200x1800 \
+                    -background white \
+                    -fill black \
+                    -pointsize 48 \
+                    -gravity center \
+                    label:"PhotoBooth Test Print\n$(date '+%Y-%m-%d %H:%M:%S')\n\nPrinter: $selected\n4x6 inch @ 300 DPI" \
+                    "$TEST_IMAGE"
+
+                lp -d "$selected" \
+                    -o media=na_index-4x6_4x6in \
+                    -o print-quality=5 \
+                    -o fit-to-page \
+                    "$TEST_IMAGE" 2>/dev/null
+
+                if [[ $? -eq 0 ]]; then
+                    echo -e "${GREEN}Test page sent to $selected.${NC}"
+                    rm -f "$TEST_IMAGE"
+                else
+                    echo -e "${RED}Failed to send test page.${NC}"
+                fi
+            else
+                # Fallback to CUPS test page
+                lp -d "$selected" /usr/share/cups/data/testprint 2>/dev/null && \
+                    echo -e "${GREEN}Test page sent.${NC}" || \
+                    echo -e "${RED}Failed to send test page.${NC}"
+            fi
         fi
     fi
 
     press_enter
 }
 
-printer_clear_errors() {
+printer_clear_errors_all() {
     clear_screen
-    echo -e "${BOLD}Clearing printer errors...${NC}"
+    echo -e "${BOLD}Clearing All Printer Errors...${NC}"
     echo ""
 
-    sudo cupsenable "$PRINTER_NAME" 2>/dev/null || true
-    sudo cupsdisable "$PRINTER_NAME" 2>/dev/null || true
-    sudo cupsenable "$PRINTER_NAME" 2>/dev/null || true
+    # Clear errors for all Selphy printers
+    while IFS= read -r line; do
+        local pname=$(echo "$line" | awk '{print $2}')
+        [[ -z "$pname" ]] && continue
 
-    echo -e "${GREEN}Printer errors cleared.${NC}"
+        echo "Clearing errors for: $pname"
+        sudo cupsdisable "$pname" 2>/dev/null || true
+        sudo cupsenable "$pname" 2>/dev/null || true
+        sudo cupsaccept "$pname" 2>/dev/null || true
+    done < <(lpstat -p 2>/dev/null | grep -i selphy)
+
+    echo ""
+    echo -e "${GREEN}All printer errors cleared.${NC}"
+
+    press_enter
+}
+
+# Register new printer
+printer_register_new() {
+    clear_screen
+    echo -e "${BOLD}Register New Printer${NC}"
+    echo ""
+
+    # Find USB printers
+    echo -e "${CYAN}=== Scanning USB for Canon Selphy CP1500 ===${NC}"
+    local usb_info=$(lsusb -v 2>/dev/null | grep -A 20 "${CANON_VENDOR_ID}:${SELPHY_PRODUCT_ID}" | grep iSerial | awk '{print $3}')
+
+    if [[ -z "$usb_info" ]]; then
+        echo -e "${RED}No Canon Selphy CP1500 detected on USB.${NC}"
+        echo ""
+        echo "Please check:"
+        echo "  1. Printer is powered on"
+        echo "  2. USB cable is connected (use data cable, not charge-only)"
+        echo "  3. USB port is working"
+        press_enter
+        return
+    fi
+
+    # Get already registered serials
+    local registered_serials=$(lpstat -v 2>/dev/null | grep -i selphy | grep -oP 'serial=\K[^&\s]+')
+
+    echo ""
+    echo -e "${CYAN}=== Connected Printers ===${NC}"
+
+    local new_serials=()
+    while IFS= read -r serial; do
+        [[ -z "$serial" ]] && continue
+
+        if echo "$registered_serials" | grep -q "$serial"; then
+            echo -e "  $serial - ${GREEN}Already registered${NC}"
+        else
+            echo -e "  $serial - ${YELLOW}Not registered${NC}"
+            new_serials+=("$serial")
+        fi
+    done <<< "$usb_info"
+
+    if [[ ${#new_serials[@]} -eq 0 ]]; then
+        echo ""
+        echo "All connected printers are already registered."
+        press_enter
+        return
+    fi
+
+    echo ""
+    echo "Found ${#new_serials[@]} unregistered printer(s)."
+
+    for serial in "${new_serials[@]}"; do
+        echo ""
+        if confirm_action "Register printer with serial $serial?"; then
+            # Determine printer name
+            local printer_num=$(lpstat -p 2>/dev/null | grep -ci selphy || echo 0)
+            ((printer_num++))
+
+            local new_name="SelphyCP1500"
+            [[ $printer_num -gt 1 ]] && new_name="SelphyCP1500-$printer_num"
+
+            echo ""
+            echo "Registering as: $new_name"
+
+            local uri="usb://Canon/SELPHY%20CP1500?serial=$serial"
+
+            # Use existing PPD if available
+            if [[ -f "/etc/cups/ppd/SelphyCP1500.ppd" ]]; then
+                sudo lpadmin -p "$new_name" \
+                    -E \
+                    -v "$uri" \
+                    -P "/etc/cups/ppd/SelphyCP1500.ppd" \
+                    -D "Canon Selphy CP1500 (Serial: $serial)" \
+                    -L "PhotoBooth"
+            else
+                sudo lpadmin -p "$new_name" \
+                    -E \
+                    -v "$uri" \
+                    -m "$GUTENPRINT_DRIVER" \
+                    -D "Canon Selphy CP1500 (Serial: $serial)" \
+                    -L "PhotoBooth"
+            fi
+
+            sudo cupsenable "$new_name" 2>/dev/null || true
+            sudo cupsaccept "$new_name" 2>/dev/null || true
+
+            if lpstat -p "$new_name" &>/dev/null; then
+                echo -e "${GREEN}Successfully registered: $new_name${NC}"
+            else
+                echo -e "${RED}Failed to register printer.${NC}"
+            fi
+        fi
+    done
+
+    press_enter
+}
+
+# Run printer troubleshooter
+printer_troubleshoot() {
+    clear_screen
+
+    local troubleshoot_script="$PHOTOBOOTH_DIR/scripts/printer/printer-troubleshoot.sh"
+
+    if [[ -f "$troubleshoot_script" ]]; then
+        echo -e "${BOLD}Running Printer Troubleshooter...${NC}"
+        echo ""
+        bash "$troubleshoot_script" --menu
+    else
+        echo -e "${RED}Troubleshooter script not found.${NC}"
+        echo "Expected at: $troubleshoot_script"
+        press_enter
+    fi
+}
+
+# Disable ipp-usb service
+printer_disable_ipp_usb() {
+    clear_screen
+    echo -e "${BOLD}Disable ipp-usb Service${NC}"
+    echo ""
+
+    echo "ipp-usb intercepts USB printer connections and can prevent"
+    echo "direct USB communication with CUPS."
+    echo ""
+
+    # Check current status
+    if systemctl is-active --quiet ipp-usb 2>/dev/null; then
+        echo -e "Current status: ${YELLOW}Running${NC}"
+    else
+        echo -e "Current status: ${GREEN}Not running${NC}"
+    fi
+
+    echo ""
+
+    if confirm_action "Stop and disable ipp-usb service?"; then
+        echo ""
+        echo "Step 1: Stopping ipp-usb..."
+        sudo systemctl stop ipp-usb 2>/dev/null || true
+
+        echo "Step 2: Killing any remaining processes..."
+        sudo pkill -9 ipp-usb 2>/dev/null || true
+        sleep 1
+
+        echo "Step 3: Masking service to prevent auto-start..."
+        sudo systemctl mask ipp-usb 2>/dev/null || true
+
+        echo "Step 4: Reloading USB device..."
+        # Find Canon USB device and rebind
+        for usb_path in /sys/bus/usb/devices/*/idVendor; do
+            local dir=$(dirname "$usb_path")
+            local vendor=$(cat "$usb_path" 2>/dev/null)
+            if [[ "$vendor" == "$CANON_VENDOR_ID" ]]; then
+                local dev_name=$(basename "$dir")
+                echo "  Rebinding USB device: $dev_name"
+                echo "$dev_name" | sudo tee /sys/bus/usb/drivers/usb/unbind &>/dev/null || true
+                sleep 1
+                echo "$dev_name" | sudo tee /sys/bus/usb/drivers/usb/bind &>/dev/null || true
+                sleep 1
+            fi
+        done
+
+        echo "Step 5: Loading usblp module..."
+        sudo modprobe usblp
+        sleep 2
+
+        echo ""
+        echo -e "${GREEN}ipp-usb disabled successfully.${NC}"
+        echo ""
+        echo "USB device status:"
+        ls -la /dev/usb/lp* 2>/dev/null || echo "  Waiting for device..."
+        echo ""
+        echo "To re-enable ipp-usb later:"
+        echo "  sudo systemctl unmask ipp-usb"
+        echo "  sudo systemctl start ipp-usb"
+    fi
 
     press_enter
 }
@@ -1171,22 +1464,63 @@ quick_fix_issues() {
 
     case $opt in
         1)
-            echo -e "${BOLD}Fixing Printer Issues...${NC}"
+            echo -e "${BOLD}Fixing Printer Issues (Multi-Printer)...${NC}"
             echo ""
-            echo "1. Restarting CUPS..."
-            sudo systemctl restart cups
-            echo "2. Clearing print queue..."
-            cancel -a 2>/dev/null || true
-            echo "3. Re-enabling printer..."
-            sudo cupsenable "$PRINTER_NAME" 2>/dev/null || true
-            echo "4. Checking usblp module..."
-            if lsmod | grep -q usblp; then
-                echo "   Removing usblp module..."
-                sudo rmmod usblp 2>/dev/null || true
+
+            echo "Step 1: Checking ipp-usb conflict..."
+            if systemctl is-active --quiet ipp-usb 2>/dev/null; then
+                echo "  ipp-usb is running - stopping it..."
+                sudo systemctl stop ipp-usb 2>/dev/null || true
+                sudo pkill -9 ipp-usb 2>/dev/null || true
+                sleep 1
+            else
+                echo "  ipp-usb not running (good)"
             fi
+
+            echo "Step 2: Loading usblp module..."
+            sudo modprobe usblp 2>/dev/null || true
+
+            echo "Step 3: Rebinding USB devices..."
+            for usb_path in /sys/bus/usb/devices/*/idVendor; do
+                local dir=$(dirname "$usb_path")
+                local vendor=$(cat "$usb_path" 2>/dev/null)
+                if [[ "$vendor" == "$CANON_VENDOR_ID" ]]; then
+                    local dev_name=$(basename "$dir")
+                    echo "  Rebinding: $dev_name"
+                    echo "$dev_name" | sudo tee /sys/bus/usb/drivers/usb/unbind &>/dev/null || true
+                    sleep 1
+                    echo "$dev_name" | sudo tee /sys/bus/usb/drivers/usb/bind &>/dev/null || true
+                fi
+            done
+            sleep 2
+
+            echo "Step 4: Restarting CUPS..."
+            sudo systemctl restart cups
+            sleep 2
+
+            echo "Step 5: Clearing print queue..."
+            sudo cancel -a 2>/dev/null || true
+
+            echo "Step 6: Re-enabling all Selphy printers..."
+            while IFS= read -r line; do
+                local pname=$(echo "$line" | awk '{print $2}')
+                [[ -z "$pname" ]] && continue
+                echo "  Enabling: $pname"
+                sudo cupsenable "$pname" 2>/dev/null || true
+                sudo cupsaccept "$pname" 2>/dev/null || true
+            done < <(lpstat -p 2>/dev/null | grep -i selphy)
+
             echo ""
-            echo -e "${GREEN}Done. Try printing again.${NC}"
-            echo "If still not working, unplug and replug the printer USB."
+            echo -e "${GREEN}Done!${NC}"
+            echo ""
+            echo "Current status:"
+            echo "  USB devices: $(ls /dev/usb/lp* 2>/dev/null | wc -w) found"
+            lpstat -p 2>/dev/null | grep -i selphy | head -5
+            echo ""
+            echo "If still not working:"
+            echo "  - Unplug and replug printer USB cables"
+            echo "  - Check USB cable (use data cable, not charge-only)"
+            echo "  - Use option 8 in Printer Menu for full troubleshooter"
             ;;
         2)
             echo -e "${BOLD}Fixing WiFi Issues...${NC}"
