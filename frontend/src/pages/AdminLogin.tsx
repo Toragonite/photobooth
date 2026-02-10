@@ -28,16 +28,9 @@ export function AdminLogin() {
       const response = await adminApi.login(pin);
 
       if (response.success && response.data?.token) {
-        // Verify token was saved before navigating
-        const savedToken = localStorage.getItem("adminToken");
-        if (savedToken) {
-          navigate("/admin/dashboard", { replace: true });
-        } else {
-          // Token wasn't saved, try again
-          localStorage.setItem("adminToken", response.data.token);
-          localStorage.setItem("adminTokenExpires", response.data.expires_at);
-          navigate("/admin/dashboard", { replace: true });
-        }
+        // Use window.location for full page navigation
+        // React Router navigate() doesn't work reliably in some environments
+        window.location.href = "/admin/dashboard";
       } else {
         setError(t("admin.login.invalidPin"));
         setIsLoading(false);
