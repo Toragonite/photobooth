@@ -137,7 +137,6 @@ export interface LogEntry {
 class AdminApiClient {
   // Fallback memory storage when localStorage is unavailable
   private _memoryToken: string | null = null;
-  private _memoryTokenExpires: string | null = null;
 
   private getToken(): string | null {
     if (typeof window === "undefined") return null;
@@ -189,7 +188,6 @@ class AdminApiClient {
 
   private clearToken(): void {
     this._memoryToken = null;
-    this._memoryTokenExpires = null;
     if (typeof window === "undefined") return;
     try {
       localStorage.removeItem("adminToken");
@@ -200,20 +198,28 @@ class AdminApiClient {
   }
 
   // Check if token is valid
+  // Backend sends expires_at in UTC (ISO format with timezone)
   isAuthenticated(): boolean {
     const token = this.getToken();
     if (!token) return false;
 
     let expires: string | null = null;
     try {
-      expires = localStorage.getItem("adminTokenExpires") || this._memoryTokenExpires;
+      expires = localStorage.getItem("adminTokenExpires");
     } catch {
-      expires = this._memoryTokenExpires;
+      // localStorage unavailable, assume valid if token exists
+      return true;
     }
 
-    if (expires && new Date(expires) < new Date()) {
-      this.clearToken();
-      return false;
+    if (expires) {
+      // Parse the expiration time (backend sends UTC ISO string)
+      // JavaScript Date automatically handles timezone conversion
+      const expiresTime = new Date(expires).getTime();
+      const nowTime = Date.now();
+      if (expiresTime < nowTime) {
+        this.clearToken();
+        return false;
+      }
     }
 
     return true;
@@ -235,14 +241,12 @@ class AdminApiClient {
         localStorage.setItem("adminTokenExpires", data.data.expires_at);
         // Also store in memory as backup
         this._memoryToken = data.data.token;
-        this._memoryTokenExpires = data.data.expires_at;
         console.log("Token saved to localStorage and memory");
       } catch (e) {
         // localStorage may be blocked (e.g., Safari private mode)
         // Store in memory as fallback
         console.warn("localStorage unavailable, using memory storage", e);
         this._memoryToken = data.data.token;
-        this._memoryTokenExpires = data.data.expires_at;
       }
     }
 
@@ -562,9 +566,10 @@ class AdminApiClient {
     formData.append("photo", file);
     formData.append("index", String(index));
 
+    const token = this.getToken();
     const response = await fetch(`${API_BASE}/upload/session/${sessionId}/photos`, {
       method: "POST",
-      headers: this.getAuthHeaders(),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
 

@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
@@ -151,12 +151,13 @@ async def admin_login(
     # Mark success
     attempt.success = 1
 
-    # Generate token
-    expires_at = datetime.now() + timedelta(minutes=settings.token_expire_minutes)
+    # Generate token (use UTC for consistency across timezones)
+    now_utc = datetime.now(timezone.utc)
+    expires_at = now_utc + timedelta(minutes=settings.token_expire_minutes)
     payload = {
         "sub": "admin",
         "exp": expires_at,
-        "iat": datetime.now(),
+        "iat": now_utc,
     }
     token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
