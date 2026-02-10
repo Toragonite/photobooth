@@ -41,6 +41,12 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - photobooth-network
 
@@ -50,8 +56,10 @@ services:
     container_name: photobooth-nginx
     restart: unless-stopped
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
