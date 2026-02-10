@@ -233,6 +233,10 @@ class AdminApiClient {
       try {
         localStorage.setItem("adminToken", data.data.token);
         localStorage.setItem("adminTokenExpires", data.data.expires_at);
+        // Also store in memory as backup
+        this._memoryToken = data.data.token;
+        this._memoryTokenExpires = data.data.expires_at;
+        console.log("Token saved to localStorage and memory");
       } catch (e) {
         // localStorage may be blocked (e.g., Safari private mode)
         // Store in memory as fallback
