@@ -135,9 +135,17 @@ export interface LogEntry {
 }
 
 class AdminApiClient {
+  // Fallback memory storage when localStorage is unavailable
+  private _memoryToken: string | null = null;
+  private _memoryTokenExpires: string | null = null;
+
   private getToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("adminToken");
+    try {
+      return localStorage.getItem("adminToken") || this._memoryToken;
+    } catch {
+      return this._memoryToken;
+    }
   }
 
   private getAuthHeaders(): HeadersInit {
@@ -180,9 +188,15 @@ class AdminApiClient {
   }
 
   private clearToken(): void {
+    this._memoryToken = null;
+    this._memoryTokenExpires = null;
     if (typeof window === "undefined") return;
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminTokenExpires");
+    try {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminTokenExpires");
+    } catch {
+      // localStorage unavailable
+    }
   }
 
   // Check if token is valid
@@ -190,7 +204,13 @@ class AdminApiClient {
     const token = this.getToken();
     if (!token) return false;
 
-    const expires = localStorage.getItem("adminTokenExpires");
+    let expires: string | null = null;
+    try {
+      expires = localStorage.getItem("adminTokenExpires") || this._memoryTokenExpires;
+    } catch {
+      expires = this._memoryTokenExpires;
+    }
+
     if (expires && new Date(expires) < new Date()) {
       this.clearToken();
       return false;
@@ -210,8 +230,16 @@ class AdminApiClient {
     const data = await response.json();
 
     if (data.success && data.data?.token) {
-      localStorage.setItem("adminToken", data.data.token);
-      localStorage.setItem("adminTokenExpires", data.data.expires_at);
+      try {
+        localStorage.setItem("adminToken", data.data.token);
+        localStorage.setItem("adminTokenExpires", data.data.expires_at);
+      } catch (e) {
+        // localStorage may be blocked (e.g., Safari private mode)
+        // Store in memory as fallback
+        console.warn("localStorage unavailable, using memory storage", e);
+        this._memoryToken = data.data.token;
+        this._memoryTokenExpires = data.data.expires_at;
+      }
     }
 
     return data;
