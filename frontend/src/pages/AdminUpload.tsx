@@ -104,7 +104,7 @@ export function AdminUpload() {
 
       const fileArray = Array.from(files).slice(0, requiredPhotos);
       if (fileArray.length < requiredPhotos) {
-        setError(t("admin.upload.notEnoughPhotos", { count: requiredPhotos }));
+        setError(t("admin.upload.notEnoughPhotos").replace("{{count}}", String(requiredPhotos)));
         return;
       }
 
@@ -318,7 +318,7 @@ export function AdminUpload() {
             </h2>
             <LayoutSelector value={layoutType} onChange={setLayoutType} />
             <p className="text-center text-text-muted">
-              {t("admin.upload.requiredPhotos", { count: requiredPhotos })}
+              {t("admin.upload.requiredPhotos").replace("{{count}}", String(requiredPhotos))}
             </p>
             <div className="flex justify-center">
               <button onClick={handleLayoutConfirm} className="btn-primary py-3 px-8">
@@ -351,7 +351,7 @@ export function AdminUpload() {
                     {t("admin.upload.dropzone")}
                   </p>
                   <p className="text-sm text-gray-400 mt-2">
-                    {t("admin.upload.requiredPhotos", { count: requiredPhotos })}
+                    {t("admin.upload.requiredPhotos").replace("{{count}}", String(requiredPhotos))}
                   </p>
                 </>
               )}
