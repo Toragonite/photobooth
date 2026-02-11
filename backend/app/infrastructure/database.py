@@ -126,7 +126,7 @@ class PrintJobModel(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("copies >= 1 AND copies <= 3"),
+        CheckConstraint("copies >= 1 AND copies <= 10"),
         CheckConstraint(
             "status IN ('pending', 'processing', 'printing', 'completed', "
             "'failed', 'cancelled', 'retry_pending')"
@@ -265,6 +265,52 @@ async def init_db():
                 )
         except Exception:
             pass  # Columns already exist or table doesn't exist yet
+
+        # Migration: Update copies CHECK constraint from 3 to 10
+        # SQLite doesn't support ALTER CONSTRAINT, so we need to recreate the table
+        try:
+            # Check if we need to migrate (by attempting to see if constraint is old)
+            # We use a simple approach: check table SQL for the old constraint
+            result = await conn.execute(
+                text("SELECT sql FROM sqlite_master WHERE type='table' AND name='print_jobs'")
+            )
+            row = result.fetchone()
+            if row and row[0] and "copies <= 3" in row[0]:
+                # Old constraint found, need to migrate
+                await conn.execute(text("""
+                    CREATE TABLE print_jobs_new (
+                        id VARCHAR(8) PRIMARY KEY,
+                        session_id VARCHAR(36) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        copies INTEGER NOT NULL DEFAULT 1,
+                        cups_job_id INTEGER,
+                        printer_name VARCHAR(100),
+                        created_at DATETIME NOT NULL,
+                        started_at DATETIME,
+                        completed_at DATETIME,
+                        cancelled_at DATETIME,
+                        error_code VARCHAR(50),
+                        error_message TEXT,
+                        retry_count INTEGER NOT NULL DEFAULT 0,
+                        next_retry_at DATETIME,
+                        completed_copies INTEGER NOT NULL DEFAULT 0,
+                        current_copy INTEGER NOT NULL DEFAULT 0,
+                        cups_job_ids TEXT,
+                        CHECK (copies >= 1 AND copies <= 10),
+                        CHECK (status IN ('pending', 'processing', 'printing', 'completed', 'failed', 'cancelled', 'retry_pending'))
+                    )
+                """))
+                await conn.execute(text("""
+                    INSERT INTO print_jobs_new SELECT * FROM print_jobs
+                """))
+                await conn.execute(text("DROP TABLE print_jobs"))
+                await conn.execute(text("ALTER TABLE print_jobs_new RENAME TO print_jobs"))
+                # Recreate indexes
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_print_jobs_session_id ON print_jobs(session_id)"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs(status)"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_print_jobs_created_at ON print_jobs(created_at)"))
+        except Exception:
+            pass  # Migration already done or table doesn't exist yet
 
     # Seed default settings
     async with async_session() as session:
