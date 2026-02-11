@@ -231,6 +231,17 @@ async def init_db():
         except Exception:
             pass  # Column already exists or table doesn't exist yet
 
+        # Migration: Add printer_name column to print_jobs if not exists
+        try:
+            result = await conn.execute(text("PRAGMA table_info(print_jobs)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "printer_name" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE print_jobs ADD COLUMN printer_name VARCHAR(100)")
+                )
+        except Exception:
+            pass  # Column already exists or table doesn't exist yet
+
     # Seed default settings
     async with async_session() as session:
         for key, value in DEFAULT_SETTINGS.items():
