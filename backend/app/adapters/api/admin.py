@@ -1111,9 +1111,9 @@ async def upload_photo(
     return AdminResponse(
         success=True,
         data={
-            "photo_id": result.data.photo_id,
+            "photo_id": f"{session_id}_{result.data.index}",
             "index": result.data.index,
-            "thumbnail_url": f"/api/photos/{session_id}/{index}/thumbnail",
+            "thumbnail_url": f"/api/photos/{session_id}/{result.data.index}/thumbnail",
         },
     )
 
