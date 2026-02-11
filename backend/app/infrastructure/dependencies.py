@@ -32,7 +32,7 @@ from app.application.use_cases.system import (CleanupStorageUseCase,
                                               HealthCheckUseCase)
 from app.infrastructure.container import Container, create_request_container
 from app.infrastructure.database import get_db
-from app.infrastructure.services import get_queue_manager
+from .services import get_queue_manager
 
 # ─────────────────────────────────────────────────────────────────
 # Container dependency
