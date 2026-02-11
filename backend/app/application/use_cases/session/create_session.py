@@ -6,13 +6,14 @@ from app.application.dto.session_dto import CreateSessionResponse
 from app.application.ports.repositories import SessionRepository
 from app.application.use_cases.base import UseCase, UseCaseResult
 from app.domain.entities import PhotoSession
-from app.domain.value_objects import Language
+from app.domain.value_objects import Language, LayoutType
 
 
 @dataclass
 class CreateSessionInput:
     """Input for creating a session."""
     language: str = "ko"
+    layout_type: str = "2x2"
 
 
 class CreateSessionUseCase(UseCase[CreateSessionResponse]):
@@ -29,7 +30,12 @@ class CreateSessionUseCase(UseCase[CreateSessionResponse]):
         except ValueError:
             language = Language.KOREAN
 
-        session = PhotoSession.create(language=language)
+        try:
+            layout_type = LayoutType(input_data.layout_type)
+        except ValueError:
+            layout_type = LayoutType.GRID_2X2
+
+        session = PhotoSession.create(language=language, layout_type=layout_type)
         await self._session_repo.save(session)
 
         return UseCaseResult.ok(
@@ -37,5 +43,7 @@ class CreateSessionUseCase(UseCase[CreateSessionResponse]):
                 session_id=str(session.id),
                 language=session.language.value,
                 status=session.status.value,
+                layout_type=session.layout_type.value,
+                required_photos=session.required_photos,
             )
         )

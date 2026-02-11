@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.application.ports.repositories import SessionRepository
 from app.domain.entities import Photo, PhotoSession
-from app.domain.value_objects import (Language, PhotoId, SessionId,
+from app.domain.value_objects import (Language, LayoutType, PhotoId, SessionId,
                                       SessionStatus)
 from app.infrastructure.database import PhotoModel, SessionModel
 
@@ -34,6 +34,7 @@ class SQLAlchemySessionRepository(SessionRepository):
         if existing:
             # Update existing session
             existing.language = session.language.value
+            existing.layout_type = session.layout_type.value
             existing.status = session.status.value
             existing.completed_at = session.completed_at
             existing.abandoned_at = session.abandoned_at
@@ -135,6 +136,7 @@ class SQLAlchemySessionRepository(SessionRepository):
         model = SessionModel(
             id=session.id.value,
             language=session.language.value,
+            layout_type=session.layout_type.value,
             status=session.status.value,
             created_at=session.created_at,
             completed_at=session.completed_at,
@@ -152,9 +154,16 @@ class SQLAlchemySessionRepository(SessionRepository):
         photos = [self._model_to_photo(p) for p in model.photos]
         photos.sort(key=lambda p: p.index)
 
+        # Handle legacy sessions without layout_type
+        try:
+            layout_type = LayoutType(model.layout_type) if model.layout_type else LayoutType.GRID_2X2
+        except (ValueError, AttributeError):
+            layout_type = LayoutType.GRID_2X2
+
         return PhotoSession(
             id=SessionId.from_string(model.id),
             language=Language(model.language),
+            layout_type=layout_type,
             status=SessionStatus(model.status),
             created_at=model.created_at,
             completed_at=model.completed_at,

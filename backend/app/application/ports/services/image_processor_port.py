@@ -1,9 +1,11 @@
 """Image processor service port."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
+
+from app.domain.value_objects import LayoutType
 
 
 class FrameType(str, Enum):
@@ -19,21 +21,6 @@ class FrameType(str, Enum):
     RWANDA_MISSION_1 = "rwanda_mission_1"    # Rwanda flag + mission theme
     RWANDA_MISSION_2 = "rwanda_mission_2"    # Rwanda flag wave pattern
     RWANDA_MISSION_3 = "rwanda_mission_3"    # Cross + landscape (2x2)
-
-
-class LayoutType(str, Enum):
-    """Photo layout arrangement types."""
-    STRIP_1X4 = "1x4"   # 4 photos in vertical strip, duplicated side-by-side
-    GRID_2X2 = "2x2"    # 4 photos in standard 2x2 grid
-    SINGLE_1X1 = "1x1"  # 1 photo, full page
-
-
-# Required photo count per layout type
-LAYOUT_PHOTO_COUNTS = {
-    LayoutType.STRIP_1X4: 4,
-    LayoutType.GRID_2X2: 4,
-    LayoutType.SINGLE_1X1: 1,
-}
 
 
 @dataclass

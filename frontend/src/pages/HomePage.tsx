@@ -14,7 +14,7 @@ export function HomePage() {
   const handleStart = async () => {
     try {
       setIsLoading(true);
-      const response = await api.createSession(language);
+      const response = await api.createSession(language, layoutType);
 
       if (response.success && response.data) {
         // Store session ID in context

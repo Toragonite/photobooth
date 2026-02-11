@@ -17,6 +17,23 @@ class Language(str, Enum):
         }[self]
 
 
+class LayoutType(str, Enum):
+    """Photo layout arrangement types."""
+
+    STRIP_1X4 = "1x4"   # 4 photos in vertical strip, duplicated side-by-side
+    GRID_2X2 = "2x2"    # 4 photos in standard 2x2 grid
+    SINGLE_1X1 = "1x1"  # 1 photo, full page
+
+    @property
+    def required_photos(self) -> int:
+        """Return the number of photos required for this layout."""
+        return {
+            self.STRIP_1X4: 4,
+            self.GRID_2X2: 4,
+            self.SINGLE_1X1: 1,
+        }[self]
+
+
 class SessionStatus(str, Enum):
     """Photo session status."""
 

@@ -5,29 +5,37 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..exceptions import SessionError
-from ..value_objects import Language, SessionId, SessionStatus
+from ..value_objects import Language, LayoutType, SessionId, SessionStatus
 from .photo import Photo
 
 
 @dataclass
 class PhotoSession:
-    """A photo booth session with up to 4 photos."""
+    """A photo booth session with photos based on layout type."""
 
     id: SessionId
     language: Language
     status: SessionStatus
     created_at: datetime
+    layout_type: LayoutType = LayoutType.GRID_2X2
     completed_at: Optional[datetime] = None
     abandoned_at: Optional[datetime] = None
     composite_path: Optional[str] = None
     photos: List[Photo] = field(default_factory=list)
 
+    # Legacy constant for backwards compatibility
     MAX_PHOTOS = 4
+
+    @property
+    def required_photos(self) -> int:
+        """Return the number of photos required for this session's layout."""
+        return self.layout_type.required_photos
 
     @classmethod
     def create(
         cls,
         language: Language = Language.KOREAN,
+        layout_type: LayoutType = LayoutType.GRID_2X2,
     ) -> "PhotoSession":
         """Create a new session."""
         return cls(
@@ -35,6 +43,7 @@ class PhotoSession:
             language=language,
             status=SessionStatus.ACTIVE,
             created_at=datetime.now(),
+            layout_type=layout_type,
         )
 
     def add_photo(self, photo: Photo) -> None:
@@ -42,8 +51,8 @@ class PhotoSession:
         if self.status != SessionStatus.ACTIVE:
             raise SessionError("Cannot add photos to non-active session")
 
-        if len(self.photos) >= self.MAX_PHOTOS:
-            raise SessionError("Session already has maximum photos")
+        if len(self.photos) >= self.required_photos:
+            raise SessionError("Session already has maximum photos for this layout")
 
         if any(p.index == photo.index for p in self.photos):
             raise SessionError(f"Photo at index {photo.index} already exists")
@@ -51,7 +60,8 @@ class PhotoSession:
         self.photos.append(photo)
         self.photos.sort(key=lambda p: p.index)
 
-        if len(self.photos) == self.MAX_PHOTOS:
+        # Mark as complete when required photos for layout are reached
+        if len(self.photos) == self.required_photos:
             self.status = SessionStatus.COMPLETE
             self.completed_at = datetime.now()
 
@@ -67,7 +77,7 @@ class PhotoSession:
                 replaced = self.photos.pop(i)
                 break
 
-        # If was complete, go back to active
+        # If was complete, go back to active (photo count dropped below required)
         if self.status == SessionStatus.COMPLETE:
             self.status = SessionStatus.ACTIVE
             self.completed_at = None
@@ -94,7 +104,8 @@ class PhotoSession:
 
     @property
     def is_complete(self) -> bool:
-        return len(self.photos) == self.MAX_PHOTOS
+        """Check if session has all required photos for its layout."""
+        return len(self.photos) == self.required_photos
 
     @property
     def photo_count(self) -> int:

@@ -6,11 +6,9 @@ import aiofiles
 
 from app.application.ports.repositories import SessionRepository
 from app.application.ports.services import StoragePort
-from app.application.ports.services.image_processor_port import (
-    FrameType, LayoutType, LAYOUT_PHOTO_COUNTS
-)
+from app.application.ports.services.image_processor_port import FrameType
 from app.application.use_cases.base import UseCase, UseCaseResult
-from app.domain.value_objects import SessionId
+from app.domain.value_objects import LayoutType, SessionId
 from app.infrastructure.services.image_processor import ImageProcessor
 
 
@@ -62,7 +60,7 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
             layout_type = LayoutType.GRID_2X2
 
         # Validate photo count based on layout
-        required_photos = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
+        required_photos = layout_type.required_photos
         if session.photo_count < required_photos:
             return UseCaseResult.fail(
                 "INCOMPLETE_SESSION",
@@ -103,6 +101,8 @@ class GenerateCompositeUseCase(UseCase[CompositeOutput]):
                 input_data.session_id, composite_data
             )
 
+            # Set composite path on session
+            # Session is already marked COMPLETE when required photos are added
             session.set_composite_path(composite_path)
             await self._session_repo.save(session)
 

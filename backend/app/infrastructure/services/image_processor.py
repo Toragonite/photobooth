@@ -11,7 +11,8 @@ from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 
 from ...application.ports.services.image_processor_port import (
-    CompositeOptions, CompositeResult, FrameType, ImageProcessorPort, LayoutType)
+    CompositeOptions, CompositeResult, FrameType, ImageProcessorPort)
+from ...domain.value_objects import LayoutType
 
 # Assets directory path
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
@@ -309,8 +310,7 @@ class ImageProcessor(ImageProcessorPort):
             Composite image as JPEG bytes
         """
         # Validate photo count based on layout
-        from ...application.ports.services.image_processor_port import LAYOUT_PHOTO_COUNTS
-        expected_count = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
+        expected_count = layout_type.required_photos
         if len(photos) != expected_count:
             raise ValueError(f"Expected {expected_count} photos for {layout_type.value} layout, got {len(photos)}")
 

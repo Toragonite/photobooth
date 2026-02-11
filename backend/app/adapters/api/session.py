@@ -28,6 +28,7 @@ class CreateSessionRequest(BaseModel):
     """Request to create a new session."""
 
     language: Optional[str] = "ko"
+    layout_type: Optional[str] = "2x2"
 
 
 class SessionResponse(BaseModel):
@@ -69,7 +70,10 @@ async def create_session(
 ):
     """Create a new photo session."""
     result = await use_case.execute(
-        CreateSessionInput(language=request.language or "ko")
+        CreateSessionInput(
+            language=request.language or "ko",
+            layout_type=request.layout_type or "2x2"
+        )
     )
 
     def transform(data):
@@ -77,9 +81,10 @@ async def create_session(
             "session_id": data.session_id,
             "language": data.language,
             "status": data.status,
+            "layout_type": data.layout_type,
             "photos": [],
             "photo_count": 0,
-            "max_photos": 4,
+            "max_photos": data.required_photos,
         }
 
     return handle_result(result, transform=transform)

@@ -1,6 +1,6 @@
 """Value objects for the domain layer."""
 
-from .enums import ErrorCode, Language, PrintStatus, SessionStatus
+from .enums import ErrorCode, Language, LayoutType, PrintStatus, SessionStatus
 from .ids import JobId, PhotoId, SessionId
 
 __all__ = [
@@ -8,6 +8,7 @@ __all__ = [
     "PhotoId",
     "JobId",
     "Language",
+    "LayoutType",
     "SessionStatus",
     "PrintStatus",
     "ErrorCode",

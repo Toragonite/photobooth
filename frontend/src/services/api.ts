@@ -23,6 +23,7 @@ interface Session {
   session_id: string;
   language: string;
   status: string;
+  layout_type: string;
   created_at: string;
   completed_at: string | null;
   photos: Photo[];
@@ -120,10 +121,10 @@ class ApiClient {
   }
 
   // Session endpoints
-  async createSession(language: string = "ko"): Promise<ApiResponse<Session>> {
+  async createSession(language: string = "ko", layoutType: string = "2x2"): Promise<ApiResponse<Session>> {
     return this.request("/session", {
       method: "POST",
-      body: JSON.stringify({ language }),
+      body: JSON.stringify({ language, layout_type: layoutType }),
     });
   }
 

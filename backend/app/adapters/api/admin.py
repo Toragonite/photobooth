@@ -1025,9 +1025,7 @@ async def create_upload_session(
     Args:
         request: Session creation parameters including layout_type
     """
-    from app.application.ports.services.image_processor_port import (
-        LAYOUT_PHOTO_COUNTS, LayoutType
-    )
+    from app.domain.value_objects import LayoutType
 
     # Validate layout type
     try:
@@ -1038,17 +1036,17 @@ async def create_upload_session(
             detail=f"Invalid layout_type. Must be one of: 1x1, 2x2, 1x4"
         )
 
-    # Get required photo count
-    required_photos = LAYOUT_PHOTO_COUNTS.get(layout_type, 4)
-
-    # Create session using existing use case
+    # Create session using existing use case with layout_type
     from app.application.use_cases.session import CreateSessionInput, CreateSessionUseCase
     from app.infrastructure.repositories import SQLAlchemySessionRepository
 
     session_repo = SQLAlchemySessionRepository(db)
     use_case = CreateSessionUseCase(session_repo)
 
-    result = await use_case.execute(CreateSessionInput(language=request.language))
+    result = await use_case.execute(CreateSessionInput(
+        language=request.language,
+        layout_type=request.layout_type
+    ))
 
     if not result.success:
         raise HTTPException(status_code=400, detail=result.error_message)
@@ -1057,8 +1055,8 @@ async def create_upload_session(
         success=True,
         data={
             "session_id": result.data.session_id,
-            "layout_type": request.layout_type,
-            "required_photos": required_photos,
+            "layout_type": result.data.layout_type,
+            "required_photos": result.data.required_photos,
             "language": request.language,
         },
     )

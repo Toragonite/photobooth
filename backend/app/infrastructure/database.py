@@ -37,6 +37,7 @@ class SessionModel(Base):
 
     id = Column(String(36), primary_key=True)
     language = Column(String(2), nullable=False, default="ko")
+    layout_type = Column(String(3), nullable=False, default="2x2")
     status = Column(String(20), nullable=False, default="active")
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     completed_at = Column(DateTime, nullable=True)
@@ -57,6 +58,7 @@ class SessionModel(Base):
 
     __table_args__ = (
         CheckConstraint("language IN ('ko', 'en')"),
+        CheckConstraint("layout_type IN ('1x1', '2x2', '1x4')"),
         CheckConstraint("status IN ('active', 'complete', 'printed', 'abandoned')"),
         Index("idx_sessions_status", "status"),
         Index("idx_sessions_created_at", "created_at"),
@@ -217,6 +219,17 @@ async def init_db():
         await conn.execute(text("PRAGMA foreign_keys = ON"))
         await conn.execute(text("PRAGMA journal_mode = WAL"))
         await conn.run_sync(Base.metadata.create_all)
+
+        # Migration: Add layout_type column if not exists (for existing databases)
+        try:
+            result = await conn.execute(text("PRAGMA table_info(sessions)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "layout_type" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE sessions ADD COLUMN layout_type VARCHAR(3) DEFAULT '2x2' NOT NULL")
+                )
+        except Exception:
+            pass  # Column already exists or table doesn't exist yet
 
     # Seed default settings
     async with async_session() as session:
