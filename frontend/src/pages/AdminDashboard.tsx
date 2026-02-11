@@ -257,7 +257,7 @@ export function AdminDashboard() {
   const [queueMetrics, setQueueMetrics] = useState<PrintQueueMetrics | null>(null);
   const [queueLogs, setQueueLogs] = useState<PrintQueueEvent[]>([]);
   const [isQueueLoading, setIsQueueLoading] = useState(false);
-  const queueIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const queueIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
