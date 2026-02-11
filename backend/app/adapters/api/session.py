@@ -280,7 +280,7 @@ async def get_photo_thumbnail(
     if not photo.thumbnail_path:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
 
-    data = await storage.get_photo_path(photo.thumbnail_path)
+    data = await storage.read_file(photo.thumbnail_path)
     if not data:
         raise HTTPException(status_code=404, detail="Thumbnail file not found")
 
@@ -310,7 +310,7 @@ async def get_photo_full(
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
 
-    data = await storage.get_photo_path(photo.path)
+    data = await storage.read_file(photo.file_path)
     if not data:
         raise HTTPException(status_code=404, detail="Photo file not found")
 

@@ -32,6 +32,11 @@ class StoragePort(ABC):
         ...
 
     @abstractmethod
+    async def read_file(self, path: str) -> Optional[bytes]:
+        """Read a file and return its contents."""
+        ...
+
+    @abstractmethod
     async def get_photo_path(self, session_id: str, index: int) -> Optional[str]:
         """Get the path to a stored photo."""
         ...

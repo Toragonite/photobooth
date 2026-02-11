@@ -557,9 +557,9 @@ class PrintQueueManager:
 
             task.cups_job_id = result.job_id
 
-            # Wait for CUPS job to complete
+            # Wait for CUPS job to complete and printer to finish physical print
             success, status_msg = await self._printer_service.wait_for_job_completion(
-                result.job_id, timeout_seconds=120
+                result.job_id, timeout_seconds=180, printer_name=printer_name,
             )
 
             if not success:

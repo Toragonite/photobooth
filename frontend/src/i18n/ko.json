@@ -146,14 +146,25 @@
       },
       "session": {
         "downloadAll": "다운로드",
-        "reprint": "재인쇄"
+        "reprint": "재인쇄",
+        "delete": "삭제"
       },
       "bulk": {
         "selected": "{{count}}개 선택됨",
         "download": "선택 다운로드",
+        "delete": "선택 삭제",
         "clear": "선택 해제",
         "exportStarted": "내보내기가 시작되었습니다",
         "exportFailed": "내보내기에 실패했습니다"
+      },
+      "delete": {
+        "confirmTitle": "세션을 삭제하시겠습니까?",
+        "confirmMessage": "이 세션의 모든 사진과 인쇄 데이터가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "bulkConfirmTitle": "선택한 세션을 삭제하시겠습니까?",
+        "bulkConfirmMessage": "선택한 세션의 모든 사진과 인쇄 데이터가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "confirm": "삭제",
+        "deleting": "삭제 중...",
+        "failed": "삭제에 실패했습니다"
       },
       "reprint": {
         "title": "사진 재인쇄",

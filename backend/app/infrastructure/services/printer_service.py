@@ -782,21 +782,27 @@ class PrinterService(PrinterPort):
         return await self.print_file(file_path, copies=1, printer_name=printer_name)
 
     async def wait_for_job_completion(
-        self, cups_job_id: int, timeout_seconds: int = 120
+        self, cups_job_id: int, timeout_seconds: int = 180,
+        printer_name: Optional[str] = None,
     ) -> tuple:
-        """Wait for a CUPS job to complete.
+        """Wait for a CUPS job to complete and printer to finish physical printing.
+
+        Canon Selphy CP1500 dye-sublimation takes ~47-60 seconds per 4x6 print.
+        CUPS reports "completed" after data transfer (~2s), NOT after physical
+        printing. We must wait for the printer to return to idle state.
 
         Args:
             cups_job_id: The CUPS job ID to monitor
-            timeout_seconds: Maximum time to wait (default 120 seconds)
+            timeout_seconds: Maximum time to wait (default 180 seconds)
+            printer_name: Printer name to poll idle state after CUPS completion
 
         Returns:
             Tuple of (success: bool, status_message: str)
         """
         poll_interval = 2
         elapsed = 0
-        physical_print_time = 25  # Canon Selphy takes ~25 seconds per print
 
+        # Phase 1: Wait for CUPS to finish data transfer to printer
         while elapsed < timeout_seconds:
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
@@ -805,26 +811,112 @@ class PrinterService(PrinterPort):
             logger.debug(f"CUPS job {cups_job_id} status: {status}")
 
             if status == "completed":
-                # CUPS reports completed when data is sent to printer
-                # Wait additional time for physical printing
                 logger.info(
-                    f"CUPS job {cups_job_id} data sent, "
-                    f"waiting {physical_print_time}s for physical print"
+                    f"CUPS job {cups_job_id} data sent to printer"
                 )
-                await asyncio.sleep(physical_print_time)
-                return (True, "completed")
+                break
 
             elif status in ("cancelled", "failed", "aborted"):
                 return (False, status)
 
             elif status == "unknown":
-                # Job might have completed and been removed from queue
+                # Job removed from CUPS queue - data likely already sent
                 logger.info(
-                    f"CUPS job {cups_job_id} not in queue, assuming completed"
+                    f"CUPS job {cups_job_id} not in queue, "
+                    f"assuming data was sent to printer"
                 )
-                await asyncio.sleep(physical_print_time)
-                return (True, "completed")
+                break
+        else:
+            logger.warning(
+                f"CUPS job {cups_job_id} timed out after {timeout_seconds}s"
+            )
+            return (False, "timeout")
 
-        # Timeout
-        logger.warning(f"CUPS job {cups_job_id} timed out after {timeout_seconds}s")
-        return (False, "timeout")
+        # Phase 2: Wait for physical printing to complete
+        remaining = timeout_seconds - elapsed
+        await self._wait_for_printer_idle(
+            printer_name=printer_name,
+            cups_job_id=cups_job_id,
+            timeout_seconds=remaining,
+        )
+
+        return (True, "completed")
+
+    async def _wait_for_printer_idle(
+        self,
+        printer_name: Optional[str],
+        cups_job_id: int,
+        timeout_seconds: int = 150,
+    ) -> None:
+        """Wait for printer to finish physical printing and return to idle.
+
+        Polls printer state every few seconds from the start. The printer is
+        considered done when BOTH conditions are met:
+        1. At least min_physical_wait seconds have passed (safety floor)
+        2. CUPS reports the printer as idle
+
+        If CUPS driver reports idle immediately (doesn't track physical state),
+        the minimum wait still prevents sending the next job too early.
+        If CUPS driver does track physical state, we detect idle as soon as
+        it happens (after the minimum floor).
+        """
+        # Canon Selphy CP1500: 4 dye-sub passes + overcoat ≈ 47-60 seconds
+        # Tested: 45s was too short (printer still busy, next job caused stall)
+        # CUPS reports idle during physical print, so we can't rely on state alone
+        min_physical_wait = 63
+        poll_interval = 3
+        elapsed = 0
+        saw_processing = False
+
+        logger.info(
+            f"CUPS job {cups_job_id}: waiting for physical print "
+            f"(min {min_physical_wait}s, printer={printer_name or 'unknown'})"
+        )
+
+        if not printer_name or self.mock_mode:
+            await asyncio.sleep(min_physical_wait)
+            logger.info(
+                f"CUPS job {cups_job_id}: physical wait done ({min_physical_wait}s)"
+            )
+            return
+
+        # Poll from the start - check state every interval
+        while elapsed < timeout_seconds:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            info = self.get_printer_info(printer_name)
+            state = info.state if info else PrinterState.OFFLINE
+
+            if state == PrinterState.PROCESSING:
+                saw_processing = True
+
+            if state == PrinterState.IDLE:
+                if saw_processing:
+                    # CUPS tracked the physical print: processing → idle
+                    # Trust it regardless of minimum wait
+                    logger.info(
+                        f"CUPS job {cups_job_id}: printer {printer_name} "
+                        f"processing→idle after {elapsed}s"
+                    )
+                    return
+                elif elapsed >= min_physical_wait:
+                    # CUPS doesn't track physical state (always idle),
+                    # but minimum safety wait has passed
+                    logger.info(
+                        f"CUPS job {cups_job_id}: printer {printer_name} idle, "
+                        f"min wait reached ({elapsed}s)"
+                    )
+                    return
+                # else: idle but too early, keep waiting
+
+            if elapsed % 15 == 0:
+                logger.info(
+                    f"CUPS job {cups_job_id}: printer {printer_name} "
+                    f"state={state.value}, elapsed={elapsed}s"
+                )
+
+        logger.warning(
+            f"CUPS job {cups_job_id}: printer {printer_name} did not return "
+            f"to idle within {timeout_seconds}s, proceeding anyway"
+        )

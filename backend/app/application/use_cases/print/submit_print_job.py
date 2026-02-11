@@ -196,9 +196,10 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                         await repo.save(job)
                         await db.commit()
 
-                    # Wait for completion
+                    # Wait for completion and physical print
                     success, status_msg = await self._printer.wait_for_job_completion(
-                        result.cups_job_id, timeout_seconds=120
+                        result.cups_job_id, timeout_seconds=180,
+                        printer_name=target_printer,
                     )
 
                     if not success:

@@ -1007,6 +1007,130 @@ async def download_session_photos(
     )
 
 
+@router.delete("/photos/{session_id}", response_model=AdminResponse)
+async def delete_session(
+    session_id: str,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a session and all its files (photos, thumbnails, composites).
+
+    Args:
+        session_id: Session ID to delete
+    """
+    # Find session
+    result = await db.execute(
+        select(SessionModel).where(SessionModel.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Delete files from disk
+    storage = StorageService()
+    await storage.delete_session_files(session_id)
+
+    # Delete composite file if exists
+    if session.composite_path and os.path.exists(session.composite_path):
+        try:
+            os.remove(session.composite_path)
+        except OSError:
+            pass
+
+    # Delete related print jobs and events
+    from sqlalchemy import delete as sql_delete
+
+    await db.execute(
+        sql_delete(JobEventModel).where(
+            JobEventModel.job_id.in_(
+                select(PrintJobModel.id).where(PrintJobModel.session_id == session_id)
+            )
+        )
+    )
+    await db.execute(
+        sql_delete(PrintJobModel).where(PrintJobModel.session_id == session_id)
+    )
+
+    # Delete session (cascades to photos via relationship)
+    await db.delete(session)
+    await db.commit()
+
+    logger.info(f"Admin deleted session {session_id}")
+
+    return AdminResponse(
+        success=True,
+        data={"session_id": session_id, "message": "Session deleted"},
+    )
+
+
+@router.post("/photos/bulk-delete", response_model=AdminResponse)
+async def bulk_delete_sessions(
+    request: dict,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete multiple sessions and all their files.
+
+    Args:
+        request: {"session_ids": ["id1", "id2", ...]}
+    """
+    session_ids = request.get("session_ids", [])
+    if not session_ids:
+        raise HTTPException(status_code=400, detail="No session IDs provided")
+
+    deleted = 0
+    errors = []
+
+    for sid in session_ids:
+        try:
+            result = await db.execute(
+                select(SessionModel).where(SessionModel.id == sid)
+            )
+            session = result.scalar_one_or_none()
+            if not session:
+                errors.append(f"{sid}: not found")
+                continue
+
+            # Delete files
+            storage = StorageService()
+            await storage.delete_session_files(sid)
+            if session.composite_path and os.path.exists(session.composite_path):
+                try:
+                    os.remove(session.composite_path)
+                except OSError:
+                    pass
+
+            # Delete related print jobs and events
+            from sqlalchemy import delete as sql_delete
+
+            await db.execute(
+                sql_delete(JobEventModel).where(
+                    JobEventModel.job_id.in_(
+                        select(PrintJobModel.id).where(PrintJobModel.session_id == sid)
+                    )
+                )
+            )
+            await db.execute(
+                sql_delete(PrintJobModel).where(PrintJobModel.session_id == sid)
+            )
+
+            await db.delete(session)
+            deleted += 1
+        except Exception as e:
+            errors.append(f"{sid}: {str(e)}")
+
+    await db.commit()
+    logger.info(f"Admin bulk deleted {deleted} sessions")
+
+    return AdminResponse(
+        success=True,
+        data={
+            "deleted": deleted,
+            "errors": errors,
+        },
+    )
+
+
 @router.post("/export", response_model=AdminResponse)
 async def create_bulk_export(
     start_date: Optional[str] = None,
@@ -1220,6 +1344,21 @@ async def upload_photo(
 
     # Read photo data
     image_data = await photo.read()
+
+    # Preprocess for admin upload: convert RGBA→RGB and upscale small images
+    from PIL import Image as PILImage
+    import io
+    img = PILImage.open(io.BytesIO(image_data))
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+    min_w, min_h = 640, 480
+    if img.width < min_w or img.height < min_h:
+        scale = max(min_w / img.width, min_h / img.height)
+        new_size = (int(img.width * scale), int(img.height * scale))
+        img = img.resize(new_size, PILImage.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=95)
+    image_data = buf.getvalue()
 
     # Create use case with dependencies
     session_repo = SQLAlchemySessionRepository(db)

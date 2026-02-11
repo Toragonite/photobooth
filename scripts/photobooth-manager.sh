@@ -323,10 +323,11 @@ network_menu() {
         echo "  4. Auto-detect mode"
         echo "  5. View connected devices (AP mode)"
         echo "  6. Show WiFi credentials"
+        echo "  7. Manage known WiFi networks"
         echo ""
         echo "  0. Back to Main Menu"
         echo ""
-        echo -n "Select [0-6]: "
+        echo -n "Select [0-7]: "
         read -r choice
 
         case $choice in
@@ -336,6 +337,7 @@ network_menu() {
             4) network_auto_mode ;;
             5) network_connected_devices ;;
             6) network_show_credentials ;;
+            7) network_known_wifi ;;
             0) return ;;
             *) ;;
         esac
@@ -448,6 +450,273 @@ network_show_credentials() {
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
     echo "Web Access: https://192.168.4.1"
+
+    press_enter
+}
+
+network_known_wifi() {
+    while true; do
+        clear_screen
+        echo -e "${BOLD}Manage Known WiFi Networks${NC}"
+        echo ""
+
+        # List saved wifi connections (exclude AP connection)
+        echo -e "${CYAN}=== Saved WiFi Networks ===${NC}"
+        local saved_count=0
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local conn_name=$(echo "$line" | awk -F':' '{print $1}' | xargs)
+            local conn_type=$(echo "$line" | awk -F':' '{print $2}' | xargs)
+
+            # Only show wifi connections, skip AP
+            if [[ "$conn_type" == *"wireless"* ]] && [[ "$conn_name" != "$AP_CONNECTION_NAME" ]]; then
+                saved_count=$((saved_count + 1))
+
+                # Check if active
+                if nmcli connection show --active 2>/dev/null | grep -q "^${conn_name} "; then
+                    echo -e "  ${GREEN}* $conn_name (connected)${NC}"
+                else
+                    echo "    $conn_name"
+                fi
+            fi
+        done < <(nmcli -t -f NAME,TYPE connection show 2>/dev/null)
+
+        if [[ $saved_count -eq 0 ]]; then
+            echo "  No saved WiFi networks (besides AP)"
+        fi
+
+        echo ""
+        echo "  1. Add new WiFi network"
+        echo "  2. Remove a saved WiFi network"
+        echo "  3. Scan and connect to nearby WiFi"
+        echo ""
+        echo "  0. Back"
+        echo ""
+        echo -n "Select [0-3]: "
+        read -r choice
+
+        case $choice in
+            1) network_known_wifi_add ;;
+            2) network_known_wifi_remove ;;
+            3) network_known_wifi_scan ;;
+            0) return ;;
+            *) ;;
+        esac
+    done
+}
+
+network_known_wifi_add() {
+    clear_screen
+    echo -e "${BOLD}Add New WiFi Network${NC}"
+    echo ""
+
+    echo -n "SSID (WiFi name): "
+    read -r wifi_ssid
+
+    if [[ -z "$wifi_ssid" ]]; then
+        echo -e "${RED}SSID cannot be empty.${NC}"
+        press_enter
+        return
+    fi
+
+    echo -n "Password (leave empty for open network): "
+    read -rs wifi_password
+    echo ""
+
+    echo ""
+    echo -e "SSID:     ${BOLD}$wifi_ssid${NC}"
+    if [[ -n "$wifi_password" ]]; then
+        echo -e "Password: ${BOLD}$(echo "$wifi_password" | sed 's/./*/g')${NC}"
+    else
+        echo -e "Security: ${BOLD}Open (no password)${NC}"
+    fi
+
+    if confirm_action "Save this WiFi network?"; then
+        echo ""
+        echo "Saving WiFi network..."
+
+        if [[ -n "$wifi_password" ]]; then
+            nmcli connection add \
+                type wifi \
+                con-name "$wifi_ssid" \
+                ssid "$wifi_ssid" \
+                wifi-sec.key-mgmt wpa-psk \
+                wifi-sec.psk "$wifi_password" \
+                connection.autoconnect yes \
+                connection.autoconnect-priority 10 \
+                2>/dev/null
+        else
+            nmcli connection add \
+                type wifi \
+                con-name "$wifi_ssid" \
+                ssid "$wifi_ssid" \
+                connection.autoconnect yes \
+                connection.autoconnect-priority 10 \
+                2>/dev/null
+        fi
+
+        if [[ $? -eq 0 ]]; then
+            echo -e "${GREEN}WiFi network '$wifi_ssid' saved successfully!${NC}"
+            echo ""
+            echo "The Pi will auto-connect to this network when in Client mode."
+        else
+            echo -e "${RED}Failed to save WiFi network.${NC}"
+        fi
+    fi
+
+    press_enter
+}
+
+network_known_wifi_remove() {
+    clear_screen
+    echo -e "${BOLD}Remove Saved WiFi Network${NC}"
+    echo ""
+
+    # Build list of removable wifi connections
+    local wifi_connections=()
+    local i=1
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local conn_name=$(echo "$line" | awk -F':' '{print $1}' | xargs)
+        local conn_type=$(echo "$line" | awk -F':' '{print $2}' | xargs)
+
+        if [[ "$conn_type" == *"wireless"* ]] && [[ "$conn_name" != "$AP_CONNECTION_NAME" ]]; then
+            wifi_connections+=("$conn_name")
+            echo "  $i. $conn_name"
+            ((i++))
+        fi
+    done < <(nmcli -t -f NAME,TYPE connection show 2>/dev/null)
+
+    if [[ ${#wifi_connections[@]} -eq 0 ]]; then
+        echo "  No saved WiFi networks to remove."
+        press_enter
+        return
+    fi
+
+    echo "  0. Cancel"
+    echo ""
+    echo -n "Select [0-${#wifi_connections[@]}]: "
+    read -r selection
+
+    if [[ "$selection" == "0" || -z "$selection" ]]; then
+        return
+    fi
+
+    if [[ $selection -ge 1 && $selection -le ${#wifi_connections[@]} ]]; then
+        local selected="${wifi_connections[$((selection-1))]}"
+
+        if confirm_action "Remove WiFi network '$selected'?"; then
+            nmcli connection delete "$selected" 2>/dev/null
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}WiFi network '$selected' removed.${NC}"
+            else
+                echo -e "${RED}Failed to remove WiFi network.${NC}"
+            fi
+        fi
+    fi
+
+    press_enter
+}
+
+network_known_wifi_scan() {
+    clear_screen
+    echo -e "${BOLD}Scan Nearby WiFi Networks${NC}"
+    echo ""
+
+    echo "Scanning..."
+    nmcli device wifi rescan 2>/dev/null || true
+    sleep 2
+
+    # List available networks
+    local networks=()
+    local i=1
+
+    echo -e "${CYAN}=== Available Networks ===${NC}"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ssid=$(echo "$line" | awk -F':' '{print $1}' | xargs)
+        local signal=$(echo "$line" | awk -F':' '{print $2}' | xargs)
+        local security=$(echo "$line" | awk -F':' '{print $3}' | xargs)
+
+        [[ -z "$ssid" ]] && continue
+
+        networks+=("$ssid")
+
+        # Signal strength indicator
+        local signal_bar=""
+        if [[ $signal -ge 75 ]]; then
+            signal_bar="${GREEN}████${NC}"
+        elif [[ $signal -ge 50 ]]; then
+            signal_bar="${GREEN}███${NC}░"
+        elif [[ $signal -ge 25 ]]; then
+            signal_bar="${YELLOW}██${NC}░░"
+        else
+            signal_bar="${RED}█${NC}░░░"
+        fi
+
+        local sec_label=""
+        if [[ -n "$security" && "$security" != "--" ]]; then
+            sec_label="🔒"
+        else
+            sec_label="  "
+        fi
+
+        echo -e "  $i. $sec_label $ssid  [$signal_bar] ${signal}%"
+        ((i++))
+    done < <(nmcli -t -f SSID,SIGNAL,SECURITY device wifi list 2>/dev/null | sort -t: -k2 -rn | head -20)
+
+    if [[ ${#networks[@]} -eq 0 ]]; then
+        echo "  No WiFi networks found."
+        press_enter
+        return
+    fi
+
+    echo ""
+    echo "  0. Cancel"
+    echo ""
+    echo -n "Select network to connect [0-${#networks[@]}]: "
+    read -r selection
+
+    if [[ "$selection" == "0" || -z "$selection" ]]; then
+        return
+    fi
+
+    if [[ $selection -ge 1 && $selection -le ${#networks[@]} ]]; then
+        local selected_ssid="${networks[$((selection-1))]}"
+
+        # Check if already saved
+        if nmcli -t -f NAME connection show 2>/dev/null | grep -qx "$selected_ssid"; then
+            echo ""
+            echo "Network '$selected_ssid' is already saved. Connecting..."
+            nmcli connection up "$selected_ssid" 2>/dev/null
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Connected to '$selected_ssid'!${NC}"
+            else
+                echo -e "${RED}Failed to connect.${NC}"
+            fi
+        else
+            echo ""
+            echo -n "Password for '$selected_ssid' (empty for open): "
+            read -rs wifi_password
+            echo ""
+
+            echo "Connecting..."
+            if [[ -n "$wifi_password" ]]; then
+                nmcli device wifi connect "$selected_ssid" password "$wifi_password" 2>/dev/null
+            else
+                nmcli device wifi connect "$selected_ssid" 2>/dev/null
+            fi
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Connected to '$selected_ssid' and saved!${NC}"
+            else
+                echo -e "${RED}Failed to connect. Check password and try again.${NC}"
+            fi
+        fi
+    fi
 
     press_enter
 }

@@ -575,6 +575,24 @@ class AdminApiClient {
     window.URL.revokeObjectURL(downloadUrl);
   }
 
+  async deleteSession(sessionId: string): Promise<ApiResponse<{ session_id: string; message: string }>> {
+    return this.request(`/photos/${sessionId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async bulkDeleteSessions(sessionIds: string[]): Promise<
+    ApiResponse<{
+      deleted: number;
+      errors: string[];
+    }>
+  > {
+    return this.request("/photos/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ session_ids: sessionIds }),
+    });
+  }
+
   async createBulkExport(sessionIds: string[]): Promise<
     ApiResponse<{
       job_id: string;

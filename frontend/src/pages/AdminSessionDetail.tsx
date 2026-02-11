@@ -85,6 +85,8 @@ export function AdminSessionDetail() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchSessionData = useCallback(async () => {
     if (!sessionId) return;
@@ -165,6 +167,26 @@ export function AdminSessionDetail() {
       alert(t("admin.gallery.bulk.exportFailed") || "Download failed");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!sessionId) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await adminApi.deleteSession(sessionId);
+      if (response.success) {
+        navigate("/admin/gallery");
+      } else {
+        alert(t("admin.gallery.delete.failed") || "Failed to delete session");
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert(t("admin.gallery.delete.failed") || "Failed to delete session");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -364,7 +386,7 @@ export function AdminSessionDetail() {
                   ? t("common.loading") || "Downloading..."
                   : t("admin.gallery.session.downloadAll") || "Download"}
               </button>
-              {photos.length >= 4 && (
+              {photos.length > 0 && (
                 <button
                   onClick={openReprintModal}
                   className="btn-primary px-6"
@@ -385,6 +407,25 @@ export function AdminSessionDetail() {
                   {t("admin.gallery.session.reprint") || "Reprint"}
                 </button>
               )}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="btn-outline px-6 text-error border-error hover:bg-error hover:text-white"
+              >
+                <svg
+                  className="w-5 h-5 mr-2 inline"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                {t("admin.gallery.session.delete") || "Delete"}
+              </button>
             </section>
           </>
         )}
@@ -533,6 +574,45 @@ export function AdminSessionDetail() {
                     : t("admin.gallery.reprint.confirm") || "Print"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm shadow-xl p-6">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-7 h-7 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-text mb-2">
+                {t("admin.gallery.delete.confirmTitle") || "Delete Session?"}
+              </h3>
+              <p className="text-sm text-text-muted">
+                {t("admin.gallery.delete.confirmMessage") || "This will permanently delete all photos and print data for this session. This action cannot be undone."}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 btn-outline py-3"
+                disabled={isDeleting}
+              >
+                {t("common.cancel") || "Cancel"}
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 bg-error text-white rounded-lg py-3 font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                disabled={isDeleting}
+              >
+                {isDeleting
+                  ? t("admin.gallery.delete.deleting") || "Deleting..."
+                  : t("admin.gallery.delete.confirm") || "Delete"}
+              </button>
             </div>
           </div>
         </div>

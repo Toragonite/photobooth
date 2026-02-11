@@ -146,14 +146,25 @@
       },
       "session": {
         "downloadAll": "Download",
-        "reprint": "Reprint"
+        "reprint": "Reprint",
+        "delete": "Delete"
       },
       "bulk": {
         "selected": "{{count}} selected",
         "download": "Download Selected",
+        "delete": "Delete Selected",
         "clear": "Clear",
         "exportStarted": "Export started",
         "exportFailed": "Export failed"
+      },
+      "delete": {
+        "confirmTitle": "Delete Session?",
+        "confirmMessage": "This will permanently delete all photos and print data for this session. This action cannot be undone.",
+        "bulkConfirmTitle": "Delete selected sessions?",
+        "bulkConfirmMessage": "This will permanently delete all photos and print data for the selected sessions. This action cannot be undone.",
+        "confirm": "Delete",
+        "deleting": "Deleting...",
+        "failed": "Delete failed"
       },
       "reprint": {
         "title": "Reprint Photo",

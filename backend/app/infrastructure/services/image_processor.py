@@ -238,6 +238,10 @@ class ImageProcessor(ImageProcessorPort):
         img = Image.open(io.BytesIO(image_data))
         original_size = img.size
 
+        # Convert RGBA to RGB (JPEG doesn't support alpha channel)
+        if img.mode == "RGBA":
+            img = img.convert("RGB")
+
         # Create thumbnail maintaining aspect ratio
         img.thumbnail(
             (self.thumbnail_size, self.thumbnail_size), Image.Resampling.LANCZOS
@@ -1102,6 +1106,8 @@ class ImageProcessor(ImageProcessorPort):
     def compress_image(self, image_data: bytes, quality: int = 85) -> bytes:
         """Compress an image to reduce file size."""
         img = Image.open(io.BytesIO(image_data))
+        if img.mode == "RGBA":
+            img = img.convert("RGB")
         output = io.BytesIO()
         img.save(output, format="JPEG", quality=quality, optimize=True)
         output.seek(0)

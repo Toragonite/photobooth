@@ -141,6 +141,35 @@ export function AdminGallery() {
     }
   };
 
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      setIsBulkDeleting(true);
+      const response = await adminApi.bulkDeleteSessions(Array.from(selectedIds));
+      if (response.success && response.data) {
+        // Remove deleted sessions from local state
+        setSessions((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+        setSelectedIds(new Set());
+        if (pagination) {
+          setPagination({
+            ...pagination,
+            total: pagination.total - (response.data.deleted || 0),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      alert(t("admin.gallery.delete.failed") || "Delete failed");
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
   const selectionMode = selectedIds.size > 0;
   const hasMore = pagination
     ? pagination.page < pagination.total_pages
@@ -307,6 +336,51 @@ export function AdminGallery() {
                 className="btn-primary py-2 px-4 min-h-0 text-sm"
               >
                 {t("admin.gallery.bulk.download") || "Download Selected"}
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                className="py-2 px-4 min-h-0 text-sm rounded-lg border-2 border-error text-error hover:bg-error hover:text-white transition-colors font-medium"
+              >
+                {t("admin.gallery.bulk.delete") || "Delete Selected"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm shadow-xl p-6">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-7 h-7 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-text mb-2">
+                {t("admin.gallery.delete.bulkConfirmTitle") || `Delete ${selectedIds.size} sessions?`}
+              </h3>
+              <p className="text-sm text-text-muted">
+                {t("admin.gallery.delete.bulkConfirmMessage") || "This will permanently delete all photos and print data for the selected sessions. This action cannot be undone."}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="flex-1 btn-outline py-3"
+                disabled={isBulkDeleting}
+              >
+                {t("common.cancel") || "Cancel"}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="flex-1 bg-error text-white rounded-lg py-3 font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting
+                  ? t("admin.gallery.delete.deleting") || "Deleting..."
+                  : t("admin.gallery.delete.confirm") || "Delete"}
               </button>
             </div>
           </div>
