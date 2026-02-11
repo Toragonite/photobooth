@@ -89,12 +89,16 @@ class PrintQueueManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
+            logger.info(f"PrintQueueManager: Created new instance {id(cls._instance)}")
+        else:
+            logger.debug(f"PrintQueueManager: Returning existing instance {id(cls._instance)}, running={cls._instance._running if hasattr(cls._instance, '_running') else 'N/A'}")
         return cls._instance
 
     def __init__(self):
         if self._initialized:
             return
         self._initialized = True
+        logger.info(f"PrintQueueManager: Initializing instance {id(self)}")
 
         self._queue: asyncio.Queue[CopyTask] = asyncio.Queue()
         self._workers: Dict[str, PrinterWorker] = {}
@@ -682,13 +686,12 @@ class PrintQueueManager:
         return len(self._workers)
 
 
-# Global singleton instance
-_queue_manager: Optional[PrintQueueManager] = None
-
-
 def get_queue_manager() -> PrintQueueManager:
-    """Get the global queue manager instance."""
-    global _queue_manager
-    if _queue_manager is None:
-        _queue_manager = PrintQueueManager()
-    return _queue_manager
+    """Get the global queue manager instance.
+
+    Uses the class-level singleton pattern in PrintQueueManager.__new__
+    to ensure the same instance is returned regardless of import path.
+    """
+    instance = PrintQueueManager()
+    logger.info(f"get_queue_manager: returning instance {id(instance)}, running={instance._running}")
+    return instance
