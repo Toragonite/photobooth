@@ -66,6 +66,7 @@ export function AdminUpload() {
 
   // Preview & Print
   const [compositeUrl, setCompositeUrl] = useState<string | null>(null);
+  const [framePreviewUrl, setFramePreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copies, setCopies] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -155,33 +156,67 @@ export function AdminUpload() {
     e.preventDefault();
   };
 
-  // Generate composite when entering preview step
+  // Generate frame preview when in frame step and options change
+  useEffect(() => {
+    if (currentStep !== "frame" || !sessionId) return;
+
+    const generatePreview = async () => {
+      setIsGenerating(true);
+      try {
+        const response = await adminApi.generateUploadComposite(sessionId, {
+          frame_type: frameType,
+          include_date: includeDate,
+          include_logo: includeLogo,
+          include_custom_text: includeCustomText,
+          layout_type: layoutType,
+        });
+
+        if (response.success && response.data) {
+          setFramePreviewUrl(`${api.getCompositeUrl(sessionId)}?t=${Date.now()}`);
+        }
+      } catch (err) {
+        console.error("Preview generation failed:", err);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    generatePreview();
+  }, [currentStep, sessionId, frameType, includeDate, includeLogo, includeCustomText, layoutType]);
+
+  // Move to preview step
   const handleFrameConfirm = async () => {
     if (!sessionId) return;
 
-    setIsGenerating(true);
-    setError(null);
+    // Use existing framePreviewUrl or wait for generation
+    if (framePreviewUrl) {
+      setCompositeUrl(framePreviewUrl);
+      setCurrentStep("preview");
+    } else {
+      setIsGenerating(true);
+      setError(null);
 
-    try {
-      const response = await adminApi.generateUploadComposite(sessionId, {
-        frame_type: frameType,
-        include_date: includeDate,
-        include_logo: includeLogo,
-        include_custom_text: includeCustomText,
-        layout_type: layoutType,
-      });
+      try {
+        const response = await adminApi.generateUploadComposite(sessionId, {
+          frame_type: frameType,
+          include_date: includeDate,
+          include_logo: includeLogo,
+          include_custom_text: includeCustomText,
+          layout_type: layoutType,
+        });
 
-      if (response.success && response.data) {
-        setCompositeUrl(`${api.getCompositeUrl(sessionId)}?t=${Date.now()}`);
-        setCurrentStep("preview");
-      } else {
+        if (response.success && response.data) {
+          setCompositeUrl(`${api.getCompositeUrl(sessionId)}?t=${Date.now()}`);
+          setCurrentStep("preview");
+        } else {
+          setError("Failed to generate composite");
+        }
+      } catch (err) {
+        console.error("Composite generation failed:", err);
         setError("Failed to generate composite");
+      } finally {
+        setIsGenerating(false);
       }
-    } catch (err) {
-      console.error("Composite generation failed:", err);
-      setError("Failed to generate composite");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -239,6 +274,7 @@ export function AdminUpload() {
     setUploadedPhotos([]);
     setPhotoThumbnails([]);
     setCompositeUrl(null);
+    setFramePreviewUrl(null);
     setPrintSuccess(false);
     setError(null);
   };
@@ -384,16 +420,30 @@ export function AdminUpload() {
               {t("admin.upload.selectFrame")}
             </h2>
 
-            {/* Uploaded photos preview */}
-            <div className="flex justify-center gap-2 flex-wrap">
-              {photoThumbnails.map((thumb, i) => (
+            {/* Frame preview */}
+            <div className="flex justify-center">
+              {isGenerating ? (
+                <div className="w-48 h-72 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <LoadingSpinner />
+                </div>
+              ) : framePreviewUrl ? (
                 <img
-                  key={i}
-                  src={thumb}
-                  alt={`Photo ${i + 1}`}
-                  className="w-20 h-20 object-cover rounded-lg border"
+                  src={framePreviewUrl}
+                  alt="Frame preview"
+                  className="max-h-[250px] rounded-lg shadow-md border"
                 />
-              ))}
+              ) : (
+                <div className="flex justify-center gap-2 flex-wrap">
+                  {photoThumbnails.map((thumb, i) => (
+                    <img
+                      key={i}
+                      src={thumb}
+                      alt={`Photo ${i + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg border"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Frame options */}
