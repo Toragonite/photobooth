@@ -192,3 +192,93 @@ export function hasEnhancement(settings: EnhancementSettings): boolean {
     settings.smoothing !== 0
   );
 }
+
+/**
+ * Compress an image file to be under a target size.
+ * Handles HEIC conversion, resizing, and JPEG compression.
+ *
+ * @param file - The image file to compress
+ * @param maxSizeBytes - Maximum file size in bytes (default: 14MB to stay under 15MB limit)
+ * @param maxDimension - Maximum width/height (default: 2048px)
+ * @returns Compressed file as Blob
+ */
+export async function compressImage(
+  file: File,
+  maxSizeBytes: number = 14 * 1024 * 1024,
+  maxDimension: number = 2048
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      // Calculate new dimensions
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = maxDimension / Math.max(width, height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      // Create canvas and draw resized image
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try different quality levels to get under maxSizeBytes
+      const tryCompress = (quality: number): void => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to compress image"));
+              return;
+            }
+
+            if (blob.size <= maxSizeBytes || quality <= 0.3) {
+              // Good enough or can't compress more
+              resolve(blob);
+            } else {
+              // Try lower quality
+              tryCompress(quality - 0.1);
+            }
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+
+      // Start with quality 0.9
+      tryCompress(0.9);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+
+    img.src = url;
+  });
+}
+
+/**
+ * Compress multiple images in parallel
+ */
+export async function compressImages(
+  files: File[],
+  maxSizeBytes?: number,
+  maxDimension?: number
+): Promise<Blob[]> {
+  return Promise.all(
+    files.map((file) => compressImage(file, maxSizeBytes, maxDimension))
+  );
+}

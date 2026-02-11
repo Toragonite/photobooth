@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     session_timeout_minutes: int = 10
 
     # Image settings
-    max_photo_size_bytes: int = 5 * 1024 * 1024  # 5MB
+    max_photo_size_bytes: int = 15 * 1024 * 1024  # 15MB
     thumbnail_size: int = 300
     composite_quality: int = 95
     photo_quality: int = 92

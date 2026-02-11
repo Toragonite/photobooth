@@ -5,6 +5,7 @@ import { adminApi } from "../services/adminApi";
 import { api } from "../services/api";
 import { LoadingSpinner, LayoutSelector, CopySelector } from "../components/common";
 import { LayoutType, getPhotoCount } from "../types/layout";
+import { compressImage } from "../utils/imageEnhancement";
 
 // Frame type options (same as PreviewPage)
 type FrameType =
@@ -126,8 +127,17 @@ export function AdminUpload() {
           });
           thumbnails.push(thumbnail);
 
+          // Compress image before upload (max 4.5MB, max 2048px)
+          let fileToUpload: File | Blob = file;
+          try {
+            const compressed = await compressImage(file, 14 * 1024 * 1024, 2048);
+            fileToUpload = new File([compressed], file.name, { type: "image/jpeg" });
+          } catch (compressErr) {
+            console.warn("Compression failed, uploading original:", compressErr);
+          }
+
           // Upload to server
-          const result = await adminApi.uploadPhoto(sessionId, i, file);
+          const result = await adminApi.uploadPhoto(sessionId, i, fileToUpload as File);
           if (!result.success) {
             const errorCode = result.error?.code || "UNKNOWN";
             const errorMsg = result.error?.message || "Unknown error";

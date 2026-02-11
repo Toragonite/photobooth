@@ -93,7 +93,7 @@ class TestPhotoValidation:
             assert photo.index == index
 
     def test_photo_exceeds_max_size(self, session_id):
-        """Photo size cannot exceed 5MB."""
+        """Photo size cannot exceed 15MB."""
         with pytest.raises(InvalidPhotoError, match="exceeds max size"):
             Photo.create(
                 session_id=session_id,
@@ -102,11 +102,11 @@ class TestPhotoValidation:
                 thumbnail_path="/tmp/thumb.jpg",
                 width=1920,
                 height=1080,
-                size_bytes=6 * 1024 * 1024,  # 6MB
+                size_bytes=16 * 1024 * 1024,  # 16MB
             )
 
     def test_photo_at_max_size(self, session_id):
-        """Photo at exactly 5MB is valid."""
+        """Photo at exactly 15MB is valid."""
         photo = Photo.create(
             session_id=session_id,
             index=0,
@@ -114,9 +114,9 @@ class TestPhotoValidation:
             thumbnail_path="/tmp/thumb.jpg",
             width=1920,
             height=1080,
-            size_bytes=5 * 1024 * 1024,  # Exactly 5MB
+            size_bytes=15 * 1024 * 1024,  # Exactly 15MB
         )
-        assert photo.size_bytes == 5 * 1024 * 1024
+        assert photo.size_bytes == 15 * 1024 * 1024
 
     def test_photo_width_below_minimum(self, session_id):
         """Width cannot be below 640 pixels."""
@@ -163,8 +163,8 @@ class TestPhotoConstants:
     """Tests for Photo constants."""
 
     def test_max_size_constant(self):
-        """MAX_SIZE_BYTES is 5MB."""
-        assert Photo.MAX_SIZE_BYTES == 5 * 1024 * 1024
+        """MAX_SIZE_BYTES is 15MB."""
+        assert Photo.MAX_SIZE_BYTES == 15 * 1024 * 1024
 
     def test_min_dimensions(self):
         """Minimum dimensions are 640x480."""

@@ -22,7 +22,7 @@ class Photo:
     size_bytes: int
     captured_at: datetime
 
-    MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+    MAX_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
     MIN_WIDTH = 640
     MIN_HEIGHT = 480
     VALID_INDICES = (0, 1, 2, 3)
