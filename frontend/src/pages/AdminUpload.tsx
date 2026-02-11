@@ -127,7 +127,17 @@ export function AdminUpload() {
           thumbnails.push(thumbnail);
 
           // Upload to server
-          await adminApi.uploadPhoto(sessionId, i, file);
+          const result = await adminApi.uploadPhoto(sessionId, i, file);
+          if (!result.success) {
+            const errorCode = result.error?.code || "UNKNOWN";
+            const errorMsg = result.error?.message || "Unknown error";
+            if (errorCode === "UPLOAD_TIMEOUT") {
+              setError(t("admin.upload.timeoutError") || `Photo ${i + 1}: Upload timed out. Try smaller images.`);
+            } else {
+              setError(`Photo ${i + 1}: ${errorMsg}`);
+            }
+            return;
+          }
         }
 
         setUploadedPhotos(fileArray);
@@ -135,7 +145,8 @@ export function AdminUpload() {
         setCurrentStep("frame");
       } catch (err) {
         console.error("Upload failed:", err);
-        setError("Failed to upload photos");
+        const errMsg = err instanceof Error ? err.message : "Unknown error";
+        setError(`Failed to upload photos: ${errMsg}`);
       } finally {
         setIsUploading(false);
       }
@@ -396,7 +407,7 @@ export function AdminUpload() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
               multiple
               onChange={(e) => handleFileSelect(e.target.files)}
               className="hidden"

@@ -656,27 +656,55 @@ class AdminApiClient {
     formData.append("index", String(index));
 
     const token = this.getToken();
-    const response = await fetch(`${API_BASE}/upload/session/${sessionId}/photos`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        this.clearToken();
+    // Use AbortController for timeout (60 seconds for slow AP networks)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const response = await fetch(`${API_BASE}/upload/session/${sessionId}/photos`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.clearToken();
+        }
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: {
+            code: "UPLOAD_FAILED",
+            message: errorData.detail || `HTTP ${response.status}`,
+          },
+        };
       }
-      const errorData = await response.json().catch(() => ({}));
+
+      return response.json();
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === "AbortError") {
+        return {
+          success: false,
+          error: {
+            code: "UPLOAD_TIMEOUT",
+            message: "Upload timed out. Please try again with a smaller image or better connection.",
+          },
+        };
+      }
       return {
         success: false,
         error: {
           code: "UPLOAD_FAILED",
-          message: errorData.detail || `HTTP ${response.status}`,
+          message: err instanceof Error ? err.message : "Unknown error",
         },
       };
     }
-
-    return response.json();
   }
 
   async generateUploadComposite(

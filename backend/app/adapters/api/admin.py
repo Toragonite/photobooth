@@ -1345,17 +1345,57 @@ async def upload_photo(
     # Read photo data
     image_data = await photo.read()
 
-    # Preprocess for admin upload: convert RGBA→RGB and upscale small images
+    # Preprocess for admin upload: handle HEIC/PNG, convert to RGB, upscale small images
     from PIL import Image as PILImage
+    from PIL import ExifTags
     import io
-    img = PILImage.open(io.BytesIO(image_data))
+
+    # Register HEIC support if available
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except ImportError:
+        pass  # HEIC not supported without pillow-heif
+
+    try:
+        img = PILImage.open(io.BytesIO(image_data))
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot open image file. Format may not be supported: {str(e)}"
+        )
+
+    # Apply EXIF orientation (important for mobile photos)
+    try:
+        exif = img._getexif()
+        if exif:
+            for tag, value in exif.items():
+                if ExifTags.TAGS.get(tag) == "Orientation":
+                    if value == 3:
+                        img = img.rotate(180, expand=True)
+                    elif value == 6:
+                        img = img.rotate(270, expand=True)
+                    elif value == 8:
+                        img = img.rotate(90, expand=True)
+                    break
+    except (AttributeError, KeyError, TypeError):
+        pass  # No EXIF data or orientation
+
+    # Convert RGBA to RGB with white background (for PNG transparency)
     if img.mode == "RGBA":
+        background = PILImage.new("RGB", img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+        img = background
+    elif img.mode != "RGB":
         img = img.convert("RGB")
+
+    # Upscale small images
     min_w, min_h = 640, 480
     if img.width < min_w or img.height < min_h:
         scale = max(min_w / img.width, min_h / img.height)
         new_size = (int(img.width * scale), int(img.height * scale))
         img = img.resize(new_size, PILImage.Resampling.LANCZOS)
+
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=95)
     image_data = buf.getvalue()
