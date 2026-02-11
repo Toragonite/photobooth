@@ -6,16 +6,23 @@ from the queue when it becomes idle.
 """
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from .printer_service import PrinterService
 
 logger = logging.getLogger(__name__)
+
+# State file path (in Docker volume)
+STATE_FILE_PATH = Path("/app/data/queue_state.json")
+# Fallback for local development
+DEV_STATE_FILE_PATH = Path("data/queue_state.json")
 
 
 class CopyStatus(str, Enum):
@@ -134,6 +141,9 @@ class PrintQueueManager:
             self._worker_tasks.append(task)
             logger.info(f"Created worker for printer: {name}")
 
+        # Restore saved state (pending tasks, worker stats, events)
+        await self._restore_state()
+
         logger.info(
             f"PrintQueueManager started with {len(printer_names)} printer workers"
         )
@@ -141,6 +151,9 @@ class PrintQueueManager:
     async def stop(self) -> None:
         """Stop the queue manager and all workers."""
         self._running = False
+
+        # Save state before stopping
+        self._save_state()
 
         # Cancel all worker tasks
         for task in self._worker_tasks:
@@ -152,6 +165,168 @@ class PrintQueueManager:
 
         self._worker_tasks.clear()
         logger.info("PrintQueueManager stopped")
+
+    # ─────────────────────────────────────────────────────────────────
+    # State persistence (simple file-based)
+    # ─────────────────────────────────────────────────────────────────
+
+    def _get_state_file_path(self) -> Path:
+        """Get the appropriate state file path."""
+        if STATE_FILE_PATH.parent.exists():
+            return STATE_FILE_PATH
+        # Fallback for local development
+        DEV_STATE_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        return DEV_STATE_FILE_PATH
+
+    def _save_state(self) -> None:
+        """Save queue state to file for persistence across restarts."""
+        try:
+            state_file = self._get_state_file_path()
+
+            # Collect pending/queued tasks that haven't completed
+            pending_tasks = []
+            for job_id, copies in self._job_copies.items():
+                for task in copies:
+                    if task.status in (CopyStatus.QUEUED, CopyStatus.PRINTING):
+                        pending_tasks.append({
+                            "job_id": task.job_id,
+                            "copy_number": task.copy_number,
+                            "total_copies": task.total_copies,
+                            "file_path": task.file_path,
+                            "status": task.status.value,
+                            "created_at": task.created_at.isoformat(),
+                        })
+
+            # Worker stats
+            worker_stats = {
+                name: {
+                    "completed_count": w.completed_count,
+                    "failed_count": w.failed_count,
+                }
+                for name, w in self._workers.items()
+            }
+
+            # Recent events (keep last 50)
+            events = [
+                {
+                    "timestamp": e.timestamp.isoformat(),
+                    "job_id": e.job_id,
+                    "event_type": e.event_type,
+                    "message": e.message,
+                    "printer_name": e.printer_name,
+                    "copy_number": e.copy_number,
+                    "total_copies": e.total_copies,
+                }
+                for e in self._events[-50:]
+            ]
+
+            state = {
+                "saved_at": datetime.now().isoformat(),
+                "pending_tasks": pending_tasks,
+                "worker_stats": worker_stats,
+                "events": events,
+            }
+
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(state_file, "w") as f:
+                json.dump(state, f, indent=2)
+
+            logger.info(f"Queue state saved: {len(pending_tasks)} pending tasks")
+
+        except Exception as e:
+            logger.error(f"Failed to save queue state: {e}")
+
+    def _load_state(self) -> Dict[str, Any]:
+        """Load queue state from file."""
+        try:
+            state_file = self._get_state_file_path()
+            if not state_file.exists():
+                logger.info("No saved queue state found")
+                return {}
+
+            with open(state_file, "r") as f:
+                state = json.load(f)
+
+            saved_at = state.get("saved_at", "unknown")
+            pending_count = len(state.get("pending_tasks", []))
+            logger.info(f"Loaded queue state from {saved_at}: {pending_count} pending tasks")
+
+            return state
+
+        except Exception as e:
+            logger.error(f"Failed to load queue state: {e}")
+            return {}
+
+    async def _restore_state(self) -> None:
+        """Restore pending tasks and stats from saved state."""
+        state = self._load_state()
+        if not state:
+            return
+
+        # Restore worker stats
+        worker_stats = state.get("worker_stats", {})
+        for name, stats in worker_stats.items():
+            if name in self._workers:
+                self._workers[name].completed_count = stats.get("completed_count", 0)
+                self._workers[name].failed_count = stats.get("failed_count", 0)
+
+        # Restore events
+        events_data = state.get("events", [])
+        for e in events_data:
+            try:
+                self._events.append(QueueEvent(
+                    timestamp=datetime.fromisoformat(e["timestamp"]),
+                    job_id=e["job_id"],
+                    event_type=e["event_type"],
+                    message=e["message"],
+                    printer_name=e.get("printer_name"),
+                    copy_number=e.get("copy_number"),
+                    total_copies=e.get("total_copies"),
+                ))
+            except Exception:
+                pass
+
+        # Restore pending tasks
+        pending_tasks = state.get("pending_tasks", [])
+        if not pending_tasks:
+            return
+
+        # Group by job_id
+        jobs: Dict[str, List[dict]] = {}
+        for task_data in pending_tasks:
+            job_id = task_data["job_id"]
+            if job_id not in jobs:
+                jobs[job_id] = []
+            jobs[job_id].append(task_data)
+
+        # Re-queue pending tasks
+        for job_id, tasks_data in jobs.items():
+            copy_tasks = []
+            for td in tasks_data:
+                task = CopyTask(
+                    job_id=td["job_id"],
+                    copy_number=td["copy_number"],
+                    total_copies=td["total_copies"],
+                    file_path=td["file_path"],
+                    status=CopyStatus.QUEUED,  # Reset to queued
+                    created_at=datetime.fromisoformat(td["created_at"]),
+                )
+                task_id = f"{task.job_id}_copy{task.copy_number}"
+                self._active_tasks[task_id] = task
+                copy_tasks.append(task)
+                await self._queue.put(task)
+
+                self._add_event(
+                    job_id=task.job_id,
+                    event_type="copy_restored",
+                    message=f"Copy {task.copy_number}/{task.total_copies} restored from saved state",
+                    copy_number=task.copy_number,
+                    total_copies=task.total_copies,
+                )
+
+            self._job_copies[job_id] = copy_tasks
+
+        logger.info(f"Restored {len(pending_tasks)} pending tasks from {len(jobs)} jobs")
 
     async def refresh_workers(self, printer_names: List[str]) -> None:
         """Refresh workers when printer list changes.
@@ -453,6 +628,9 @@ class PrintQueueManager:
             # Clean up job tracking (keep for a while for status queries)
             # Don't remove immediately to allow status queries
             # self._job_copies.pop(job_id, None)
+
+            # Save state after job completion
+            self._save_state()
 
     # ─────────────────────────────────────────────────────────────────
     # Database update methods (direct DB access to avoid callback issues)

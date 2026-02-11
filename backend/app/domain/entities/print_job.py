@@ -33,7 +33,7 @@ class PrintJob:
     cups_job_ids: List[int] = field(default_factory=list)  # History of all CUPS job IDs
 
     MAX_RETRIES = 3
-    MAX_COPIES = 3
+    MAX_COPIES = 10
     TIMEOUT_SECONDS = 120
 
     def __post_init__(self):
