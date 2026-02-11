@@ -558,7 +558,7 @@ export function AdminUpload() {
               <>
                 {/* Copy selector */}
                 <div className="flex justify-center">
-                  <CopySelector value={copies} onChange={setCopies} max={3} />
+                  <CopySelector value={copies} onChange={setCopies} max={10} />
                 </div>
 
                 {/* Action buttons */}
