@@ -203,7 +203,7 @@ class ApiClient {
   async generateComposite(
     sessionId: string,
     includeDate: boolean = true,
-    includeLogo: boolean = false,
+    includeLogo: boolean = true,
     frameType: string = "classic",
     layoutType: string = "2x2",
     includeCustomText: boolean = true,

@@ -186,12 +186,12 @@ export function AdminGallery() {
   return (
     <div className="h-screen overflow-y-auto bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-background border-b border-gray-200 p-4 md:px-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-20 bg-background border-b border-gray-200 p-4 md:px-8 safe-top">
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button
               onClick={() => navigate("/admin/dashboard")}
-              className="btn-outline py-2 px-3 min-h-0 text-sm"
+              className="btn-outline py-2 px-3 min-h-0 text-sm flex-shrink-0"
             >
               <svg
                 className="w-4 h-4 mr-1 inline"
@@ -206,15 +206,16 @@ export function AdminGallery() {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              {t("admin.gallery.detail.backToDashboard") || "Dashboard"}
+              <span className="hidden sm:inline">{t("admin.gallery.detail.backToDashboard") || "Dashboard"}</span>
+              <span className="sm:hidden">Back</span>
             </button>
-            <h1 className="text-2xl font-bold text-primary">
+            <h1 className="text-lg sm:text-2xl font-bold text-primary truncate">
               {t("admin.gallery.title") || "Photo Gallery"}
             </h1>
           </div>
           <button
             onClick={handleLogout}
-            className="btn-outline py-2 px-4 min-h-0 text-error border-error hover:bg-error hover:text-white"
+            className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm text-error border-error hover:bg-error hover:text-white flex-shrink-0"
           >
             {t("admin.dashboard.logout") || "Logout"}
           </button>
@@ -253,7 +254,7 @@ export function AdminGallery() {
       </header>
 
       {/* Content */}
-      <main className="p-4 md:p-8 pb-24">
+      <main className="p-4 md:p-8 pb-28">
         {error ? (
           <div className="text-center py-12">
             <p className="text-error mb-4">{error}</p>
@@ -316,32 +317,34 @@ export function AdminGallery() {
 
       {/* Bulk Actions Bar */}
       {selectionMode && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-30">
-          <div className="max-w-screen-xl mx-auto flex items-center justify-between gap-4">
-            <span className="text-sm font-medium">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 safe-bottom z-30">
+          <div className="max-w-screen-xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            <span className="text-sm font-medium text-center sm:text-left">
               {t("admin.gallery.bulk.selected")?.replace(
                 "{{count}}",
                 String(selectedIds.size)
               ) || `${selectedIds.size} selected`}
             </span>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-end">
               <button
                 onClick={handleClearSelection}
-                className="btn-outline py-2 px-4 min-h-0 text-sm"
+                className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm"
               >
                 {t("admin.gallery.bulk.clear") || "Clear"}
               </button>
               <button
                 onClick={handleBulkDownload}
-                className="btn-primary py-2 px-4 min-h-0 text-sm"
+                className="btn-primary py-2 px-3 sm:px-4 min-h-0 text-sm"
               >
-                {t("admin.gallery.bulk.download") || "Download Selected"}
+                <span className="hidden sm:inline">{t("admin.gallery.bulk.download") || "Download Selected"}</span>
+                <span className="sm:hidden">Download</span>
               </button>
               <button
                 onClick={() => setShowBulkDeleteConfirm(true)}
-                className="py-2 px-4 min-h-0 text-sm rounded-lg border-2 border-error text-error hover:bg-error hover:text-white transition-colors font-medium"
+                className="py-2 px-3 sm:px-4 min-h-0 text-sm rounded-lg border-2 border-error text-error hover:bg-error hover:text-white transition-colors font-medium"
               >
-                {t("admin.gallery.bulk.delete") || "Delete Selected"}
+                <span className="hidden sm:inline">{t("admin.gallery.bulk.delete") || "Delete Selected"}</span>
+                <span className="sm:hidden">Delete</span>
               </button>
             </div>
           </div>

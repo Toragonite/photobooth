@@ -261,42 +261,41 @@ export function AdminSessionDetail() {
   return (
     <div className="h-screen overflow-y-auto bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-background border-b border-gray-200 p-4 md:px-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/admin/gallery")}
-              className="btn-outline py-2 px-3 min-h-0 text-sm"
+      <header className="sticky top-0 z-20 bg-background border-b border-gray-200 p-4 md:px-8 safe-top">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            onClick={() => navigate("/admin/gallery")}
+            className="btn-outline py-2 px-3 min-h-0 text-sm flex-shrink-0"
+          >
+            <svg
+              className="w-4 h-4 mr-1 inline"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className="w-4 h-4 mr-1 inline"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              {t("admin.gallery.detail.backToGallery") || "Gallery"}
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-text">
-                {dateStr} {timeStr}
-              </h1>
-              <p className="text-sm text-text-muted">
-                {session.status} · {session.language.toUpperCase()}
-              </p>
-            </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            <span className="hidden sm:inline">{t("admin.gallery.detail.backToGallery") || "Gallery"}</span>
+            <span className="sm:hidden">Back</span>
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-xl font-bold text-text truncate">
+              {dateStr} {timeStr}
+            </h1>
+            <p className="text-xs sm:text-sm text-text-muted">
+              {session.status} · {session.language.toUpperCase()}
+            </p>
           </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="p-4 md:p-8 max-w-4xl mx-auto">
+      <main className="p-4 md:p-8 pb-12 max-w-4xl mx-auto">
         {session.files_cleaned ? (
           <div className="text-center py-12 text-text-muted">
             <svg
@@ -320,7 +319,7 @@ export function AdminSessionDetail() {
         ) : (
           <>
             {/* Photos Grid */}
-            <section className="mb-8">
+            <section className="mb-4 sm:mb-8">
               <h2 className="text-lg font-semibold mb-4">
                 {t("admin.gallery.detail.photos") || "Photos"} ({photos.length})
               </h2>
@@ -348,7 +347,7 @@ export function AdminSessionDetail() {
 
             {/* Composite */}
             {session.has_composite && (
-              <section className="mb-8">
+              <section className="mb-4 sm:mb-8">
                 <h2 className="text-lg font-semibold mb-4">
                   {t("admin.gallery.detail.composite") || "Composite"}
                 </h2>
@@ -363,11 +362,11 @@ export function AdminSessionDetail() {
             )}
 
             {/* Actions */}
-            <section className="flex gap-4 justify-center">
+            <section className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <button
                 onClick={handleDownload}
                 disabled={isDownloading}
-                className="btn-outline px-6 disabled:opacity-50"
+                className="btn-outline px-4 sm:px-6 disabled:opacity-50"
               >
                 <svg
                   className="w-5 h-5 mr-2 inline"
@@ -389,7 +388,7 @@ export function AdminSessionDetail() {
               {photos.length > 0 && (
                 <button
                   onClick={openReprintModal}
-                  className="btn-primary px-6"
+                  className="btn-primary px-4 sm:px-6"
                 >
                   <svg
                     className="w-5 h-5 mr-2 inline"
@@ -409,7 +408,7 @@ export function AdminSessionDetail() {
               )}
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="btn-outline px-6 text-error border-error hover:bg-error hover:text-white"
+                className="btn-outline px-4 sm:px-6 text-error border-error hover:bg-error hover:text-white"
               >
                 <svg
                   className="w-5 h-5 mr-2 inline"
@@ -450,9 +449,9 @@ export function AdminSessionDetail() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Composite Preview - smaller */}
-              <div className="mb-8 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center min-h-[150px]">
+              <div className="mb-4 sm:mb-8 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center min-h-[150px]">
                 {isGenerating ? (
                   <LoadingSpinner message={t("preview.generating") || "Generating..."} />
                 ) : previewUrl ? (
@@ -467,18 +466,18 @@ export function AdminSessionDetail() {
               </div>
 
               {/* Frame Selector */}
-              <div className="mb-8">
-                <label className="block text-lg font-semibold mb-3">
+              <div className="mb-4 sm:mb-8">
+                <label className="block text-sm sm:text-lg font-semibold mb-3">
                   {t("preview.selectFrame") || "Select Frame"}
                 </label>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                   {FRAME_OPTIONS.map((option) => (
                     <button
                       key={option.id}
                       onClick={() => setFrameType(option.id)}
                       disabled={isGenerating}
                       className={`
-                        flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all
+                        flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-lg border-2 transition-all text-center
                         ${
                           frameType === option.id
                             ? "border-primary bg-primary/10 text-primary"
@@ -487,51 +486,51 @@ export function AdminSessionDetail() {
                         ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}
                       `}
                     >
-                      <span className="text-xl">{option.icon}</span>
-                      <span className="text-base font-medium">{t(option.labelKey)}</span>
+                      <span className="text-lg sm:text-xl">{option.icon}</span>
+                      <span className="text-xs sm:text-sm font-medium leading-tight">{t(option.labelKey)}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Options */}
-              <div className="mb-8 flex flex-wrap gap-6">
-                <label className="flex items-center gap-3 cursor-pointer">
+              <div className="mb-4 sm:mb-8 flex flex-wrap gap-3 sm:gap-6">
+                <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeDate}
                     onChange={(e) => setIncludeDate(e.target.checked)}
                     disabled={isGenerating}
-                    className="w-6 h-6 rounded accent-primary"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded accent-primary"
                   />
-                  <span className="text-lg">{t("preview.includeDate") || "Show Date"}</span>
+                  <span className="text-sm sm:text-lg">{t("preview.includeDate") || "Show Date"}</span>
                 </label>
 
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeLogo}
                     onChange={(e) => setIncludeLogo(e.target.checked)}
                     disabled={isGenerating}
-                    className="w-6 h-6 rounded accent-primary"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded accent-primary"
                   />
-                  <span className="text-lg">{t("preview.includeLogo") || "Show Logo"}</span>
+                  <span className="text-sm sm:text-lg">{t("preview.includeLogo") || "Show Logo"}</span>
                 </label>
 
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeCustomText}
                     onChange={(e) => setIncludeCustomText(e.target.checked)}
                     disabled={isGenerating}
-                    className="w-6 h-6 rounded accent-primary"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded accent-primary"
                   />
-                  <span className="text-lg">{t("preview.includeCustomText") || "Custom Text"}</span>
+                  <span className="text-sm sm:text-lg">{t("preview.includeCustomText") || "Custom Text"}</span>
                 </label>
               </div>
 
               {/* Copy Selector */}
-              <div className="mb-8">
+              <div className="mb-4 sm:mb-8">
                 <label className="block text-lg font-semibold mb-3">
                   {t("admin.gallery.reprint.copies") || "Number of Copies"}
                 </label>

@@ -104,9 +104,9 @@ function PrintQueueCard({
 
   return (
     <div className="card md:col-span-2">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Print Queue</h2>
-        <div className="flex items-center gap-2 text-sm text-text-muted">
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <h2 className="text-lg sm:text-xl font-semibold">Print Queue</h2>
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-text-muted flex-shrink-0">
           <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-primary animate-pulse" : "bg-secondary"}`} />
           Auto-refresh (5s)
         </div>
@@ -360,28 +360,31 @@ export function AdminDashboard() {
   const hasManyPrinters = printers.length > 1;
 
   return (
-    <div className="h-screen overflow-y-auto bg-background p-4 md:p-8">
+    <div className="h-screen overflow-y-auto bg-background">
       {/* Header */}
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-primary">
-          {t("admin.dashboard.title")}
-        </h1>
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigate("/")}
-            className="btn-outline py-2 px-4 min-h-0"
-          >
-            {t("common.home")}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="btn-outline py-2 px-4 min-h-0 text-error border-error hover:bg-error hover:text-white"
-          >
-            {t("admin.dashboard.logout")}
-          </button>
+      <header className="sticky top-0 z-20 bg-background border-b border-gray-200 p-4 md:px-8 safe-top">
+        <div className="flex justify-between items-center gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary truncate">
+            {t("admin.dashboard.title")}
+          </h1>
+          <div className="flex gap-2 sm:gap-4 flex-shrink-0">
+            <button
+              onClick={() => navigate("/")}
+              className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base"
+            >
+              {t("common.home")}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base text-error border-error hover:bg-error hover:text-white"
+            >
+              {t("admin.dashboard.logout")}
+            </button>
+          </div>
         </div>
       </header>
 
+      <div className="p-4 md:p-8 pb-12">
       {error ? (
         <div className="text-center text-error">
           <p>{error}</p>
@@ -390,7 +393,7 @@ export function AdminDashboard() {
           </button>
         </div>
       ) : status ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* System Status */}
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">
@@ -481,19 +484,19 @@ export function AdminDashboard() {
             </h2>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-3xl font-bold text-primary">
+                <p className="text-2xl sm:text-3xl font-bold text-primary">
                   {status.activity.prints_total}
                 </p>
                 <p className="text-sm text-text-muted">Total</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-secondary">
+                <p className="text-2xl sm:text-3xl font-bold text-secondary">
                   {status.activity.prints_completed}
                 </p>
                 <p className="text-sm text-text-muted">Completed</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-error">
+                <p className="text-2xl sm:text-3xl font-bold text-error">
                   {status.activity.prints_failed}
                 </p>
                 <p className="text-sm text-text-muted">Failed</p>
@@ -512,30 +515,30 @@ export function AdminDashboard() {
           {/* Quick Actions */}
           <div className="card lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-2 sm:gap-4">
               <button
                 onClick={fetchStatus}
-                className="btn-outline py-2 px-4 min-h-0"
+                className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base"
               >
                 Refresh Status
               </button>
               {!hasManyPrinters && (
                 <button
                   onClick={() => handleTestPrint()}
-                  className="btn-outline py-2 px-4 min-h-0"
+                  className="btn-outline py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base"
                 >
                   Test Print
                 </button>
               )}
               <button
                 onClick={() => navigate("/admin/gallery")}
-                className="btn-primary py-2 px-4 min-h-0"
+                className="btn-primary py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base"
               >
                 {t("admin.gallery.title") || "Photo Gallery"}
               </button>
               <button
                 onClick={() => navigate("/admin/upload")}
-                className="btn-primary py-2 px-4 min-h-0"
+                className="btn-primary py-2 px-3 sm:px-4 min-h-0 text-sm sm:text-base"
               >
                 {t("admin.upload.title") || "Mobile Upload"}
               </button>
@@ -543,6 +546,7 @@ export function AdminDashboard() {
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

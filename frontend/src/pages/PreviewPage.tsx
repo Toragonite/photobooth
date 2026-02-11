@@ -48,10 +48,11 @@ export function PreviewPage() {
   const [isGenerating, setIsGenerating] = useState(true);
   const [copies, setCopies] = useState(1);
   const [includeDate, setIncludeDate] = useState(true);
-  const [includeLogo, setIncludeLogo] = useState(settings.logoEnabled);
+  const includeLogo = true;
   const [includeCustomText, setIncludeCustomText] = useState(true);
   const [frameType, setFrameType] = useState<FrameType>("classic");
   const [error, setError] = useState<string | null>(null);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
 
   // Generate composite on mount
   useEffect(() => {
@@ -147,8 +148,8 @@ export function PreviewPage() {
         ) : null}
       </div>
 
-      {/* Options - fixed height container */}
-      <div className="section-fixed h-36 flex flex-col justify-center gap-2">
+      {/* Options - tablet+ inline, hidden on mobile (moved to modal) */}
+      <div className="section-fixed hidden sm:flex h-36 flex-col justify-center gap-2">
         {/* Frame selector */}
         <div
           className={`flex flex-wrap justify-center gap-1.5 transition-opacity duration-200 ${
@@ -194,15 +195,7 @@ export function PreviewPage() {
             <span>{t("preview.includeDate")}</span>
           </label>
 
-          <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-            <input
-              type="checkbox"
-              checked={includeLogo}
-              onChange={(e) => setIncludeLogo(e.target.checked)}
-              className="w-4 h-4 rounded accent-primary"
-            />
-            <span>{t("preview.includeLogo")}</span>
-          </label>
+
 
           <label className="flex items-center gap-1.5 cursor-pointer text-sm">
             <input
@@ -217,19 +210,92 @@ export function PreviewPage() {
       </div>
 
       {/* Actions - fixed height */}
-      <div className="section-fixed h-16 flex gap-4 justify-center items-center">
-        <button onClick={handleRetake} className="btn-outline py-3 px-6 min-h-0">
+      <div className="section-fixed h-16 flex gap-3 sm:gap-4 justify-center items-center">
+        <button onClick={handleRetake} className="btn-outline py-2 sm:py-3 px-4 sm:px-6 min-h-0 text-sm sm:text-base">
           {t("preview.retakePhoto")}
         </button>
+
+        {/* Mobile: Options button */}
+        {showOptions && (
+          <button
+            onClick={() => setShowOptionsModal(true)}
+            className="sm:hidden btn-outline py-2 px-4 min-h-0 text-sm"
+          >
+            <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {t("preview.options")}
+          </button>
+        )}
 
         <button
           onClick={handlePrint}
           disabled={isGenerating || !compositeUrl}
-          className="btn-primary py-3 px-6 min-h-0"
+          className="btn-primary py-2 sm:py-3 px-4 sm:px-6 min-h-0 text-sm sm:text-base"
         >
           {t("preview.print")}
         </button>
       </div>
+
+      {/* Mobile Options Modal */}
+      {showOptionsModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={() => setShowOptionsModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-y-auto safe-bottom" onClick={(e) => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold">{t("preview.options")}</h2>
+              <button onClick={() => setShowOptionsModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-6">
+              {/* Frame selector */}
+              <div>
+                <label className="block text-sm font-semibold mb-3">{t("preview.selectFrame")}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {FRAME_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setFrameType(option.id)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                        frameType === option.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-gray-200 hover:border-primary/50"
+                      }`}
+                    >
+                      <span className="text-lg">{option.icon}</span>
+                      <span className="text-sm font-medium">{t(option.labelKey)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Copy selector */}
+              <div>
+                <label className="block text-sm font-semibold mb-3">{t("preview.copies")}</label>
+                <div className="flex justify-center">
+                  <CopySelector
+                    value={copies}
+                    onChange={setCopies}
+                    max={settings.maxCopies}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Done button */}
+            <div className="p-4 border-t">
+              <button onClick={() => setShowOptionsModal(false)} className="btn-primary w-full">
+                {t("common.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

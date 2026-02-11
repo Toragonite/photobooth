@@ -62,7 +62,7 @@ export function AdminUpload() {
   // Frame selection
   const [frameType, setFrameType] = useState<FrameType>("classic");
   const [includeDate, setIncludeDate] = useState(true);
-  const [includeLogo, _setIncludeLogo] = useState(false);
+  const includeLogo = true;
   const [includeCustomText, setIncludeCustomText] = useState(true);
 
   // Preview & Print
@@ -311,7 +311,7 @@ export function AdminUpload() {
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 safe-top safe-bottom">
       {/* Header */}
       <div className="max-w-4xl mx-auto mb-6">
         <div className="flex items-center justify-between">
@@ -327,11 +327,11 @@ export function AdminUpload() {
         </div>
 
         {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-2 mt-6">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mt-4 sm:mt-6">
           {steps.map((step, index) => (
             <div key={step.key} className="flex items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${
                   index <= currentStepIndex
                     ? "bg-primary text-white"
                     : "bg-gray-200 text-gray-500"
@@ -340,7 +340,7 @@ export function AdminUpload() {
                 {index + 1}
               </div>
               <span
-                className={`ml-2 text-sm hidden sm:inline ${
+                className={`ml-1 sm:ml-2 text-xs sm:text-sm hidden sm:inline ${
                   index <= currentStepIndex ? "text-primary font-medium" : "text-gray-400"
                 }`}
               >
@@ -348,7 +348,7 @@ export function AdminUpload() {
               </span>
               {index < steps.length - 1 && (
                 <div
-                  className={`w-8 h-0.5 mx-2 ${
+                  className={`w-4 sm:w-8 h-0.5 mx-1 sm:mx-2 ${
                     index < currentStepIndex ? "bg-primary" : "bg-gray-200"
                   }`}
                 />
@@ -366,7 +366,7 @@ export function AdminUpload() {
       )}
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-4 sm:p-6">
         {/* Step 1: Layout Selection */}
         {currentStep === "layout" && (
           <div className="space-y-6">
@@ -473,14 +473,14 @@ export function AdminUpload() {
                 <button
                   key={frame.id}
                   onClick={() => setFrameType(frame.id)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
+                  className={`p-3 rounded-lg border-2 transition-all min-h-[60px] ${
                     frameType === frame.id
                       ? "border-primary bg-primary/5"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="text-2xl mb-1">{frame.icon}</div>
-                  <div className="text-xs">{t(frame.labelKey)}</div>
+                  <div className="text-xl sm:text-2xl mb-1">{frame.icon}</div>
+                  <div className="text-xs leading-tight">{t(frame.labelKey)}</div>
                 </button>
               ))}
             </div>

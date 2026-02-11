@@ -4,7 +4,7 @@
     "loading": "로딩 중..."
   },
   "home": {
-    "title": "인생네컷",
+    "title": "선교네컷",
     "subtitle": "4장의 사진으로 추억을 만들어보세요",
     "startButton": "시작하기",
     "languageToggle": "English",
@@ -26,12 +26,19 @@
       "title": "카운트다운 설정",
       "seconds": "초"
     },
+    "settings": "설정",
     "enhancement": {
+      "title": "필터",
       "none": "원본",
       "natural": "자연스럽게",
       "bright": "밝게",
       "warm": "따뜻하게",
       "soft": "소프트"
+    },
+    "facing": {
+      "title": "카메라 방향",
+      "front": "전면 카메라",
+      "rear": "후면 카메라"
     },
     "capture": "촬영",
     "retake": "다시 찍기",
@@ -63,6 +70,7 @@
     "includeLogo": "로고 표시",
     "includeCustomText": "소망 청년",
     "includeText": "텍스트 표시",
+    "options": "옵션",
     "print": "인쇄하기",
     "generating": "이미지 생성 중..."
   },

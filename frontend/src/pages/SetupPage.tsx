@@ -31,26 +31,13 @@ export function SetupPage() {
     setSelectedPlatform(detectPlatform());
   }, []);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     setDownloadStatus("downloading");
 
     try {
-      const response = await fetch("/api/setup/certificate");
-
-      if (!response.ok) {
-        throw new Error("Download failed");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "rootCA.pem";
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
+      // Use direct navigation - works on all platforms including iOS Safari
+      // (Blob URLs cause "WebKitBlobResource error 1" on iOS)
+      window.location.href = "/api/setup/certificate";
       setDownloadStatus("success");
     } catch {
       setDownloadStatus("error");

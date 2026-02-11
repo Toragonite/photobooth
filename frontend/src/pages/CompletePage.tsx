@@ -38,9 +38,9 @@ export function CompletePage() {
     <div className="center-content">
       <div className="text-center">
         {/* Success icon */}
-        <div className="w-32 h-32 mx-auto mb-8 rounded-full bg-secondary flex items-center justify-center">
+        <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-8 rounded-full bg-secondary flex items-center justify-center">
           <svg
-            className="w-16 h-16 text-white"
+            className="w-12 h-12 sm:w-16 sm:h-16 text-white"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -55,26 +55,26 @@ export function CompletePage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-5xl font-bold text-secondary mb-4">
+        <h1 className="text-3xl sm:text-5xl font-bold text-secondary mb-3 sm:mb-4">
           {t("complete.title")}
         </h1>
 
         {/* Message */}
-        <p className="text-2xl text-text mb-2">{t("complete.message")}</p>
-        <p className="text-xl text-text-muted mb-12">
+        <p className="text-lg sm:text-2xl text-text mb-2">{t("complete.message")}</p>
+        <p className="text-base sm:text-xl text-text-muted mb-8 sm:mb-12">
           {t("complete.thankYou")}
         </p>
 
         {/* New session button */}
         <button
           onClick={handleNewSession}
-          className="btn-primary text-xl px-12"
+          className="btn-primary text-lg sm:text-xl px-8 sm:px-12"
         >
           {t("complete.newSession")}
         </button>
 
         {/* Auto return countdown */}
-        <p className="mt-8 text-text-muted">
+        <p className="mt-4 sm:mt-8 text-sm sm:text-base text-text-muted">
           {t("complete.autoReturn").replace("{{seconds}}", String(countdown))}
         </p>
       </div>

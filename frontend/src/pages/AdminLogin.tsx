@@ -71,10 +71,10 @@ export function AdminLogin() {
   };
 
   return (
-    <div className="h-screen overflow-y-auto bg-background flex items-center justify-center p-4">
+    <div className="h-screen overflow-y-auto bg-background flex items-center justify-center p-4 safe-top safe-bottom">
       <div className="card max-w-md w-full">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-4 sm:mb-8">
           <h1 className="text-3xl font-bold text-primary mb-2">
             {t("admin.login.title")}
           </h1>
@@ -87,7 +87,7 @@ export function AdminLogin() {
         </div>
 
         {/* PIN display */}
-        <div className="flex justify-center gap-3 mb-8">
+        <div className="flex justify-center gap-3 mb-4 sm:mb-8">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
@@ -106,7 +106,7 @@ export function AdminLogin() {
         {error && <p className="text-error text-center mb-4">{error}</p>}
 
         {/* Number pad */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
             <button
               key={digit}

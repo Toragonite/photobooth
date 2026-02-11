@@ -25,12 +25,12 @@ def find_certificate() -> Path | None:
     """Find the root CA certificate file."""
     # Check configured path first
     configured_path = Path(CERT_PATH)
-    if configured_path.exists():
+    if configured_path.is_file():
         return configured_path
 
     # Try fallback paths for development
     for path in DEV_CERT_PATHS:
-        if path.exists():
+        if path.is_file():
             return path
 
     return None

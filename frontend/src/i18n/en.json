@@ -4,7 +4,7 @@
     "loading": "Loading..."
   },
   "home": {
-    "title": "4-Cut Photo",
+    "title": "4-Cut Missionary",
     "subtitle": "Create memories with 4 photos",
     "startButton": "Start",
     "languageToggle": "한국어",
@@ -26,12 +26,19 @@
       "title": "Countdown Setting",
       "seconds": "sec"
     },
+    "settings": "Settings",
     "enhancement": {
+      "title": "Filter",
       "none": "Original",
       "natural": "Natural",
       "bright": "Bright",
       "warm": "Warm",
       "soft": "Soft"
+    },
+    "facing": {
+      "title": "Camera Direction",
+      "front": "Front Camera",
+      "rear": "Rear Camera"
     },
     "capture": "Capture",
     "retake": "Retake",
@@ -63,6 +70,7 @@
     "includeLogo": "Show Logo",
     "includeCustomText": "Somang Youth",
     "includeText": "Show Text",
+    "options": "Options",
     "print": "Print",
     "generating": "Generating image..."
   },

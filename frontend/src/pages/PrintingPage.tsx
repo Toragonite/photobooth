@@ -50,12 +50,12 @@ export function PrintingPage() {
   return (
     <div className="center-content">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-primary mb-8">
+        <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-4 sm:mb-8">
           {t("printing.title")}
         </h1>
 
         {/* Progress ring */}
-        <div className="mx-auto mb-8">
+        <div className="mx-auto mb-4 sm:mb-8">
           <ProgressRing
             progress={progress}
             size={192}
@@ -63,12 +63,12 @@ export function PrintingPage() {
             color="primary"
             backgroundColor="#E6F4FB"
           >
-            <span className="text-4xl font-bold text-primary">{progress}%</span>
+            <span className="text-2xl sm:text-4xl font-bold text-primary">{progress}%</span>
           </ProgressRing>
         </div>
 
         {/* Status message */}
-        <p className="text-xl text-text-muted mb-4">{getStatusMessage()}</p>
+        <p className="text-base sm:text-xl text-text-muted mb-4">{getStatusMessage()}</p>
 
         {/* Animated dots */}
         <div className="flex justify-center gap-2">
@@ -82,7 +82,7 @@ export function PrintingPage() {
         </div>
 
         {/* Warning */}
-        <p className="mt-8 text-sm text-text-muted">
+        <p className="mt-4 sm:mt-8 text-xs sm:text-sm text-text-muted">
           {t("printing.doNotLeave")}
         </p>
       </div>

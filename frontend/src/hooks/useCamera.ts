@@ -131,9 +131,11 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       return null;
     }
 
-    // Mirror the image for selfie camera
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+    // Mirror the image for selfie (front) camera only
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
 
     // Draw video frame to canvas
     ctx.drawImage(video, 0, 0);
@@ -148,7 +150,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
 
     // Convert to JPEG
     return canvas.toDataURL("image/jpeg", 0.92);
-  }, [isReady, enhancement]);
+  }, [isReady, enhancement, facingMode]);
 
   return {
     videoRef,

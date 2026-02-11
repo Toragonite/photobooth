@@ -1265,7 +1265,7 @@ class GenerateUploadCompositeRequest(BaseModel):
     """Request to generate composite from uploaded photos."""
     frame_type: str = "classic"
     include_date: bool = True
-    include_logo: bool = False
+    include_logo: bool = True
     include_custom_text: bool = True
     custom_text: Optional[str] = None
 
