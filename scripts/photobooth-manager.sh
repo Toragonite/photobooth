@@ -392,19 +392,38 @@ network_ap_mode() {
 }
 
 network_client_mode() {
+    # Check if any wifi networks are saved
+    local saved_wifi
+    saved_wifi=$(nmcli -t -f NAME,TYPE connection show 2>/dev/null | \
+        grep ":.*wireless" | grep -v "$AP_CONNECTION_NAME" | wc -l)
+
+    if [[ $saved_wifi -eq 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}No saved WiFi networks found.${NC}"
+        echo "Add a WiFi network first via option 7 (Manage known WiFi networks)."
+        press_enter
+        return
+    fi
+
     if confirm_action "Switch to Client Mode? Pi will connect to available WiFi."; then
         clear_screen
         echo -e "${BOLD}Switching to Client Mode...${NC}"
+        echo "(This may take 10-15 seconds for radio mode switch)"
         echo ""
 
         sudo "$PHOTOBOOTH_DIR/scripts/network/auto-network-mode.sh" --force-client
 
         echo ""
-        echo -e "${GREEN}Client Mode activated!${NC}"
-        echo ""
-        echo "Checking connection..."
-        sleep 3
-        ip addr show "$WIFI_INTERFACE" | grep "inet " || echo "Waiting for IP..."
+        local new_ip
+        new_ip=$(ip addr show "$WIFI_INTERFACE" 2>/dev/null | grep "inet " | grep -v "$PI_IP" | awk '{print $2}' | cut -d/ -f1)
+
+        if [[ -n "$new_ip" ]]; then
+            echo -e "${GREEN}Client Mode activated!${NC}"
+            echo -e "IP: ${BOLD}$new_ip${NC}"
+        else
+            echo -e "${YELLOW}Client mode set, but no IP assigned yet.${NC}"
+            echo "Check: Network Status (option 1) to verify connection."
+        fi
     fi
 
     press_enter

@@ -175,14 +175,47 @@ enable_client_mode() {
 
     # Disconnect AP connection
     nmcli connection down "$AP_CONNECTION_NAME" 2>/dev/null || true
+    sleep 2
+
+    # Flush AP IP address to avoid confusion
+    ip addr flush dev "$WIFI_INTERFACE" 2>/dev/null || true
 
     # Re-enable NetworkManager management of wlan0
     nmcli device set "$WIFI_INTERFACE" managed yes 2>/dev/null || true
-    sleep 1
+    sleep 2
 
-    # Let NetworkManager auto-connect to known networks
+    # Scan for available networks (radio needs time after AP->station switch)
+    log "Scanning for WiFi networks..."
+    nmcli device wifi rescan ifname "$WIFI_INTERFACE" 2>/dev/null || true
+    sleep 3
+
+    # Try connecting to saved networks explicitly
     log "Reconnecting to available networks..."
-    nmcli device connect "$WIFI_INTERFACE" 2>/dev/null || true
+    local connected=false
+
+    # Get saved wifi connections sorted by priority (exclude AP)
+    local saved_connections
+    saved_connections=$(nmcli -t -f NAME,TYPE connection show 2>/dev/null | \
+        grep ":.*wireless" | cut -d: -f1 | grep -v "$AP_CONNECTION_NAME" || true)
+
+    if [[ -n "$saved_connections" ]]; then
+        while IFS= read -r conn_name; do
+            [[ -z "$conn_name" ]] && continue
+            log "Trying saved network: $conn_name"
+            if nmcli connection up "$conn_name" 2>/dev/null; then
+                log_ok "Connected to '$conn_name'"
+                connected=true
+                break
+            fi
+            sleep 1
+        done <<< "$saved_connections"
+    fi
+
+    # Fallback: let NetworkManager auto-connect
+    if [[ "$connected" == "false" ]]; then
+        log "No saved network connected, trying auto-connect..."
+        nmcli device connect "$WIFI_INTERFACE" 2>/dev/null || true
+    fi
 
     # Wait for connection
     log "Waiting for IP assignment..."
@@ -200,7 +233,7 @@ enable_client_mode() {
     done
 
     log_warn "Could not get IP in client mode"
-    log "Tip: Check if a wifi network is saved with 'nmcli connection show'"
+    log "Tip: Add wifi networks via 'photobooth-manager.sh' > Network > Manage known WiFi"
     return 1
 }
 
