@@ -41,6 +41,12 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
         self._print_job_repo = print_job_repository
         self._printer = printer
         self._queue_manager = queue_manager
+        # Debug logging
+        logger.info(
+            f"SubmitPrintJobUseCase __init__: queue_manager={queue_manager}, "
+            f"id={id(queue_manager) if queue_manager else None}, "
+            f"is_running={queue_manager.is_running if queue_manager else None}"
+        )
 
     async def execute(
         self, input_data: SubmitPrintJobInput

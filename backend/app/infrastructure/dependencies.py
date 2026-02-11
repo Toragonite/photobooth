@@ -177,7 +177,13 @@ async def get_submit_print_job_use_case(
     printer: PrinterServiceDep,
 ) -> SubmitPrintJobUseCase:
     """Get SubmitPrintJob use case."""
+    import logging
+    _logger = logging.getLogger(__name__)
     queue_manager = get_queue_manager()
+    _logger.info(
+        f"get_submit_print_job_use_case: got queue_manager id={id(queue_manager)}, "
+        f"is_running={queue_manager.is_running if queue_manager else None}"
+    )
     return SubmitPrintJobUseCase(
         session_repository=session_repo,
         print_job_repository=job_repo,

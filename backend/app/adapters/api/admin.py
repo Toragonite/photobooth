@@ -1323,16 +1323,18 @@ async def print_upload_session(
     from app.infrastructure.repositories import (
         SQLAlchemyPrintJobRepository, SQLAlchemySessionRepository
     )
-    from app.infrastructure.services import PrinterService
+    from app.infrastructure.services import PrinterService, get_queue_manager
 
     session_repo = SQLAlchemySessionRepository(db)
     job_repo = SQLAlchemyPrintJobRepository(db)
     printer = PrinterService()
+    queue_manager = get_queue_manager()
 
     use_case = SubmitPrintJobUseCase(
         session_repository=session_repo,
         print_job_repository=job_repo,
         printer=printer,
+        queue_manager=queue_manager,
     )
 
     result = await use_case.execute(
