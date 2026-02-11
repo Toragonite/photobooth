@@ -8,7 +8,7 @@ from typing import Optional
 @dataclass
 class PrintJobDTO:
     """Data transfer object for a print job."""
-    id: str
+    job_id: str
     session_id: str
     status: str
     copies: int

@@ -61,7 +61,7 @@ async def create_print_job(
 
     def transform(data):
         return {
-            "job_id": data.id,
+            "job_id": data.job_id,
             "session_id": data.session_id,
             "status": data.status,
             "copies": data.copies,

@@ -92,7 +92,7 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
 
         return UseCaseResult.ok(
             PrintJobDTO(
-                id=str(job.id),
+                job_id=str(job.id),
                 session_id=str(job.session_id),
                 status=job.status.value,
                 copies=job.copies,
