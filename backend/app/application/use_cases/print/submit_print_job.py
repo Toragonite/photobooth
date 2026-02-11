@@ -1,6 +1,5 @@
-"""Submit print job use case."""
+"""Submit print job use case with queue-based copy processing."""
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -25,17 +24,23 @@ class SubmitPrintJobInput:
 
 
 class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
-    """Use case for submitting a new print job."""
+    """Use case for submitting a new print job.
+
+    This use case validates the session, creates a PrintJob entity,
+    and submits copies to the PrintQueueManager for processing.
+    """
 
     def __init__(
         self,
         session_repository: SessionRepository,
         print_job_repository: PrintJobRepository,
         printer: PrinterPort,
+        queue_manager=None,  # Optional: PrintQueueManager
     ):
         self._session_repo = session_repository
         self._print_job_repo = print_job_repository
         self._printer = printer
+        self._queue_manager = queue_manager
 
     async def execute(
         self, input_data: SubmitPrintJobInput
@@ -62,33 +67,41 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                 "INVALID_COPIES", "Copies must be between 1 and 10"
             )
 
-        # Select printer: use explicitly requested printer, or auto-select
-        target_printer = input_data.printer_name
-        if not target_printer:
-            target_printer = await self._printer.select_printer()
-
-        if not target_printer:
-            return UseCaseResult.fail("PRINTER_OFFLINE", "No printer available")
-
-        # Check selected printer is ready
-        if not await self._printer.is_ready(target_printer):
-            return UseCaseResult.fail(
-                "PRINTER_OFFLINE", f"Printer '{target_printer}' is not available"
-            )
-
+        # Create print job entity
         job = PrintJob.create(
             session_id=sid,
             copies=input_data.copies,
-            printer_name=target_printer,
+            printer_name=input_data.printer_name,  # May be None for auto-selection
         )
         await self._print_job_repo.save(job)
 
-        # Start print job in background
-        asyncio.create_task(
-            self._process_print_job_background(
-                str(job.id), session.composite_path, input_data.copies, target_printer
+        # Submit to queue manager if available
+        if self._queue_manager and self._queue_manager.is_running:
+            # Submit copies to queue (callbacks are set once at startup in main.py)
+            await self._queue_manager.submit_job(
+                job_id=str(job.id),
+                file_path=session.composite_path,
+                copies=input_data.copies,
             )
-        )
+
+            logger.info(
+                f"Print job {job.id} submitted to queue: "
+                f"{input_data.copies} copies"
+            )
+        else:
+            # Fallback to legacy direct processing (for backwards compatibility)
+            logger.warning(
+                f"Queue manager not available, using legacy processing for job {job.id}"
+            )
+            import asyncio
+            asyncio.create_task(
+                self._process_print_job_legacy(
+                    str(job.id),
+                    session.composite_path,
+                    input_data.copies,
+                    input_data.printer_name,
+                )
+            )
 
         return UseCaseResult.ok(
             PrintJobDTO(
@@ -97,6 +110,9 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                 status=job.status.value,
                 copies=job.copies,
                 progress=job.progress_percent,
+                completed_copies=job.completed_copies,
+                current_copy=job.current_copy,
+                copy_progress=job.copy_progress_str,
                 printer_name=job.printer_name,
                 error_code=job.error_code.value if job.error_code else None,
                 error_message=job.error_message,
@@ -106,10 +122,14 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             )
         )
 
-    async def _process_print_job_background(
-        self, job_id: str, composite_path: str, copies: int, printer_name: str
+    # ─────────────────────────────────────────────────────────────────
+    # Legacy Processing (fallback if queue manager not available)
+    # ─────────────────────────────────────────────────────────────────
+
+    async def _process_print_job_legacy(
+        self, job_id: str, composite_path: str, copies: int, printer_name: Optional[str]
     ) -> None:
-        """Process the print job in background with its own database session."""
+        """Legacy processing method for backwards compatibility."""
         from app.infrastructure.database import async_session
         from app.infrastructure.repositories import SQLAlchemyPrintJobRepository
 
@@ -117,50 +137,81 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
             async with async_session() as db:
                 repo = SQLAlchemyPrintJobRepository(db)
 
-                # Load job from database
                 job = await repo.get_by_id(JobId(job_id))
                 if not job:
-                    logger.error(f"Print job {job_id} not found in background task")
+                    logger.error(f"Print job {job_id} not found in legacy processing")
                     return
 
-                file_path = composite_path
-                logger.info(
-                    f"Starting print job {job_id} for file: {file_path} "
-                    f"on printer '{printer_name}'"
-                )
+                # Select printer if not specified
+                target_printer = printer_name
+                if not target_printer:
+                    target_printer = await self._printer.select_printer()
 
-                # Start processing
+                if not target_printer:
+                    job.mark_error(ErrorCode.PRINTER_OFFLINE, "No printer available")
+                    await repo.save(job)
+                    await db.commit()
+                    return
+
+                job.printer_name = target_printer
                 job.start_processing()
                 await repo.save(job)
                 await db.commit()
 
-                # Submit to selected printer
-                result = await self._printer.print_image(file_path, copies, printer_name)
-
-                if result.success and result.cups_job_id:
-                    job.mark_printing(result.cups_job_id)
-                    # Update printer_name from actual result (in case of fallback)
-                    if result.printer_name:
-                        job.printer_name = result.printer_name
+                # Process each copy sequentially
+                for copy_num in range(1, copies + 1):
+                    job.start_copy(copy_num)
                     await repo.save(job)
                     await db.commit()
-                    logger.info(
-                        f"Print job {job_id} submitted to CUPS: {result.cups_job_id} "
-                        f"on printer '{result.printer_name}'"
+
+                    logger.info(f"Job {job_id}: Starting copy {copy_num}/{copies}")
+
+                    # Submit single copy
+                    result = await self._printer.print_image(
+                        composite_path, copies=1, printer_name=target_printer
                     )
 
-                    # Monitor print job completion
-                    await self._monitor_print_job_background(job_id, result.cups_job_id)
-                else:
-                    error_code = ErrorCode(result.error_code) if result.error_code else ErrorCode.CUPS_REJECTED
-                    job.mark_error(error_code, result.error_message or "Print submission failed")
+                    if not result.success:
+                        error_code = (
+                            ErrorCode(result.error_code)
+                            if result.error_code
+                            else ErrorCode.CUPS_REJECTED
+                        )
+                        job.mark_error(
+                            error_code, result.error_message or "Print failed"
+                        )
+                        await repo.save(job)
+                        await db.commit()
+                        return
+
+                    # Update CUPS job ID
+                    if result.cups_job_id:
+                        job.update_cups_job_id(result.cups_job_id)
+                        await repo.save(job)
+                        await db.commit()
+
+                    # Wait for completion
+                    success, status_msg = await self._printer.wait_for_job_completion(
+                        result.cups_job_id, timeout_seconds=120
+                    )
+
+                    if not success:
+                        job.mark_error(ErrorCode.CUPS_REJECTED, f"Print failed: {status_msg}")
+                        await repo.save(job)
+                        await db.commit()
+                        return
+
+                    # Mark copy as completed
+                    job.complete_copy(result.cups_job_id)
                     await repo.save(job)
                     await db.commit()
-                    logger.error(f"Print job {job_id} failed: {result.error_message}")
+
+                    logger.info(f"Job {job_id}: Copy {copy_num}/{copies} completed")
+
+                logger.info(f"Job {job_id} completed: {copies}/{copies} copies")
 
         except Exception as e:
-            logger.exception(f"Error processing print job {job_id}: {e}")
-            # Try to update job status in a new session
+            logger.exception(f"Error in legacy processing for job {job_id}: {e}")
             try:
                 async with async_session() as db:
                     repo = SQLAlchemyPrintJobRepository(db)
@@ -171,69 +222,3 @@ class SubmitPrintJobUseCase(UseCase[PrintJobDTO]):
                         await db.commit()
             except Exception as inner_e:
                 logger.exception(f"Failed to update error status for job {job_id}: {inner_e}")
-
-    async def _monitor_print_job_background(self, job_id: str, cups_job_id: int) -> None:
-        """Monitor CUPS job until completion with its own database session."""
-        from app.infrastructure.database import async_session
-        from app.infrastructure.repositories import SQLAlchemyPrintJobRepository
-
-        max_wait = 120  # 2 minutes max
-        poll_interval = 2  # Check every 2 seconds
-        elapsed = 0
-
-        while elapsed < max_wait:
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-
-            status = await self._printer.get_job_status(cups_job_id)
-            logger.debug(f"Print job {job_id} CUPS status: {status}")
-
-            if status == "completed":
-                # Wait for actual printing to finish (CUPS completes when data is sent, not printed)
-                # Estimate: ~20 seconds per copy for Canon Selphy CP1500
-                async with async_session() as db:
-                    repo = SQLAlchemyPrintJobRepository(db)
-                    job = await repo.get_by_id(JobId(job_id))
-                    if job:
-                        extra_wait = job.copies * 20  # 20 seconds per copy
-                        logger.info(f"Print job {job_id} CUPS done, waiting {extra_wait}s for {job.copies} copies to print")
-                        await asyncio.sleep(extra_wait)
-                        job.mark_completed()
-                        await repo.save(job)
-                        await db.commit()
-                logger.info(f"Print job {job_id} completed successfully")
-                return
-            elif status in ("cancelled", "failed", "aborted"):
-                async with async_session() as db:
-                    repo = SQLAlchemyPrintJobRepository(db)
-                    job = await repo.get_by_id(JobId(job_id))
-                    if job:
-                        job.mark_error(ErrorCode.CUPS_REJECTED, f"CUPS job {status}")
-                        await repo.save(job)
-                        await db.commit()
-                logger.error(f"Print job {job_id} failed with status: {status}")
-                return
-            elif status == "unknown":
-                # Job might have completed and been removed from queue
-                async with async_session() as db:
-                    repo = SQLAlchemyPrintJobRepository(db)
-                    job = await repo.get_by_id(JobId(job_id))
-                    if job:
-                        extra_wait = job.copies * 20  # 20 seconds per copy
-                        logger.info(f"Print job {job_id} assumed done, waiting {extra_wait}s for {job.copies} copies to print")
-                        await asyncio.sleep(extra_wait)
-                        job.mark_completed()
-                        await repo.save(job)
-                        await db.commit()
-                logger.info(f"Print job {job_id} assumed completed (not in queue)")
-                return
-
-        # Timeout
-        logger.warning(f"Print job {job_id} timed out after {max_wait}s")
-        async with async_session() as db:
-            repo = SQLAlchemyPrintJobRepository(db)
-            job = await repo.get_by_id(JobId(job_id))
-            if job:
-                job.mark_error(ErrorCode.CUPS_REJECTED, "Print job timed out")
-                await repo.save(job)
-                await db.commit()

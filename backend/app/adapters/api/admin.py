@@ -26,7 +26,8 @@ from app.infrastructure.dependencies import (GetLogsUseCaseDep,
                                              GetSystemStatusUseCaseDep,
                                              RebootSystemUseCaseDep,
                                              TestPrintUseCaseDep)
-from app.infrastructure.services import (CleanupService, ExportType, LogLevel,
+from app.infrastructure.services import (CleanupService, ExportType,
+                                         get_queue_manager, LogLevel,
                                          LogSource, LogViewerService,
                                          PhotoExportService, ServiceName,
                                          StorageService, SystemService,
@@ -281,6 +282,142 @@ async def get_print_job_detail(
                 "cups_job_id": job.cups_job_id,
             },
             "timeline": timeline,
+        },
+    )
+
+
+# =============================================================================
+# Print Queue Endpoints (Real-time queue monitoring)
+# =============================================================================
+
+
+@router.get("/print-queue", response_model=AdminResponse)
+async def get_print_queue(
+    admin: dict = Depends(get_admin_user),
+):
+    """Get current print queue status.
+
+    Returns:
+        - queue_length: Number of copies waiting in queue
+        - active_jobs: Number of jobs being processed
+        - workers: Status of each printer worker
+        - queued_tasks: List of pending tasks (up to 20)
+    """
+    queue_manager = get_queue_manager()
+
+    if not queue_manager.is_running:
+        return AdminResponse(
+            success=True,
+            data={
+                "queue_length": 0,
+                "active_jobs": 0,
+                "workers": [],
+                "queued_tasks": [],
+                "message": "Queue manager not running",
+            },
+        )
+
+    status = queue_manager.get_queue_status()
+
+    return AdminResponse(
+        success=True,
+        data=status,
+    )
+
+
+@router.get("/print-queue/job/{job_id}", response_model=AdminResponse)
+async def get_print_queue_job(
+    job_id: str,
+    admin: dict = Depends(get_admin_user),
+):
+    """Get status of a specific job in the queue.
+
+    Args:
+        job_id: Print job ID
+
+    Returns:
+        - job_id: The job ID
+        - copies: List of copy tasks with their status
+        - completed: Number of completed copies
+        - failed: Number of failed copies
+        - total: Total copies
+    """
+    queue_manager = get_queue_manager()
+
+    job_status = queue_manager.get_job_status(job_id)
+
+    if not job_status:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found in queue (may have completed or not submitted)",
+        )
+
+    return AdminResponse(
+        success=True,
+        data=job_status,
+    )
+
+
+@router.get("/print-queue/metrics", response_model=AdminResponse)
+async def get_print_queue_metrics(
+    admin: dict = Depends(get_admin_user),
+):
+    """Get print queue metrics.
+
+    Returns:
+        - today: Today's statistics (total, completed, failed copies)
+        - by_printer: Per-printer statistics
+    """
+    queue_manager = get_queue_manager()
+
+    if not queue_manager.is_running:
+        return AdminResponse(
+            success=True,
+            data={
+                "today": {
+                    "total_copies": 0,
+                    "completed_copies": 0,
+                    "failed_copies": 0,
+                    "queue_length": 0,
+                },
+                "by_printer": [],
+                "message": "Queue manager not running",
+            },
+        )
+
+    metrics = queue_manager.get_metrics()
+
+    return AdminResponse(
+        success=True,
+        data=metrics,
+    )
+
+
+@router.get("/print-queue/logs", response_model=AdminResponse)
+async def get_print_queue_logs(
+    limit: int = 50,
+    admin: dict = Depends(get_admin_user),
+):
+    """Get recent print queue events.
+
+    Args:
+        limit: Maximum number of events to return (default 50, max 100)
+
+    Returns:
+        - logs: List of recent queue events (most recent first)
+    """
+    queue_manager = get_queue_manager()
+
+    # Limit to 100 max
+    limit = min(limit, 100)
+
+    events = queue_manager.get_recent_events(limit=limit)
+
+    return AdminResponse(
+        success=True,
+        data={
+            "logs": events,
+            "count": len(events),
         },
     )
 

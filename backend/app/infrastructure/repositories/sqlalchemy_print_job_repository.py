@@ -1,5 +1,6 @@
 """SQLAlchemy implementation of PrintJobRepository."""
 
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -35,6 +36,10 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             existing.error_message = job.error_message
             existing.retry_count = job.retry_count
             existing.next_retry_at = job.next_retry_at
+            # Multi-copy tracking fields
+            existing.completed_copies = job.completed_copies
+            existing.current_copy = job.current_copy
+            existing.cups_job_ids = json.dumps(job.cups_job_ids) if job.cups_job_ids else None
         else:
             # Create new job
             model = self._job_to_model(job)
@@ -152,6 +157,10 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             error_message=job.error_message,
             retry_count=job.retry_count,
             next_retry_at=job.next_retry_at,
+            # Multi-copy tracking fields
+            completed_copies=job.completed_copies,
+            current_copy=job.current_copy,
+            cups_job_ids=json.dumps(job.cups_job_ids) if job.cups_job_ids else None,
         )
 
     def _model_to_job(self, model: PrintJobModel) -> PrintJob:
@@ -162,6 +171,14 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
                 error_code = ErrorCode(model.error_code)
             except ValueError:
                 # Unknown error code, leave as None
+                pass
+
+        # Parse cups_job_ids JSON
+        cups_job_ids = []
+        if model.cups_job_ids:
+            try:
+                cups_job_ids = json.loads(model.cups_job_ids)
+            except (json.JSONDecodeError, TypeError):
                 pass
 
         return PrintJob(
@@ -179,4 +196,8 @@ class SQLAlchemyPrintJobRepository(PrintJobRepository):
             error_message=model.error_message,
             retry_count=model.retry_count,
             next_retry_at=model.next_retry_at,
+            # Multi-copy tracking fields
+            completed_copies=model.completed_copies or 0,
+            current_copy=model.current_copy or 0,
+            cups_job_ids=cups_job_ids,
         )

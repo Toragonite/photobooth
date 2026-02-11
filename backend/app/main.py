@@ -10,6 +10,7 @@ from .adapters.api import admin, health, print_jobs, session, setup
 from .config import get_settings
 from .infrastructure.database import init_db
 from .infrastructure.scheduler import init_scheduler
+from .infrastructure.services import PrinterService, get_queue_manager
 
 settings = get_settings()
 
@@ -37,9 +38,23 @@ async def lifespan(app: FastAPI):
     scheduler = init_scheduler(enabled=not settings.debug)
     scheduler.start()
 
+    # Initialize PrintQueueManager with printer service
+    printer_service = PrinterService()
+    queue_manager = get_queue_manager()
+    await queue_manager.start(printer_service, printer_service.printer_names)
+    logger.info(
+        f"PrintQueueManager started with {queue_manager.printer_count} printers"
+    )
+
+    # Store in app state for access from routes
+    app.state.printer_service = printer_service
+    app.state.queue_manager = queue_manager
+
     yield
 
     # Shutdown
+    await queue_manager.stop()
+    logger.info("PrintQueueManager stopped")
     scheduler.shutdown()
     logger.info("Shutting down application")
 

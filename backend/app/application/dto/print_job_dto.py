@@ -13,6 +13,10 @@ class PrintJobDTO:
     status: str
     copies: int
     progress: int
+    # Multi-copy tracking fields
+    completed_copies: int = 0
+    current_copy: int = 0
+    copy_progress: str = "0/0"  # e.g., "1/3", "2/3"
     printer_name: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None

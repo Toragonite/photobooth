@@ -134,6 +134,77 @@ export interface LogEntry {
   message: string;
 }
 
+// Print Queue Types
+export interface PrintQueueWorker {
+  printer: string;
+  is_busy: boolean;
+  current_task: {
+    job_id: string;
+    copy: string;
+    started_at: string | null;
+  } | null;
+  completed_today: number;
+  failed_today: number;
+}
+
+export interface PrintQueueTask {
+  job_id: string;
+  copy: string;
+  queued_at: string;
+}
+
+export interface PrintQueueStatus {
+  queue_length: number;
+  active_jobs: number;
+  workers: PrintQueueWorker[];
+  queued_tasks: PrintQueueTask[];
+  message?: string;
+}
+
+export interface PrintQueueJobCopy {
+  copy_number: number;
+  status: string;
+  printer: string | null;
+  cups_job_id: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+}
+
+export interface PrintQueueJobStatus {
+  job_id: string;
+  copies: PrintQueueJobCopy[];
+  completed: number;
+  failed: number;
+  total: number;
+}
+
+export interface PrintQueueMetrics {
+  today: {
+    total_copies: number;
+    completed_copies: number;
+    failed_copies: number;
+    queue_length: number;
+  };
+  by_printer: Array<{
+    name: string;
+    completed: number;
+    failed: number;
+    is_busy: boolean;
+  }>;
+  message?: string;
+}
+
+export interface PrintQueueEvent {
+  timestamp: string;
+  job_id: string;
+  event_type: string;
+  message: string;
+  printer: string | null;
+  copy_number: number | null;
+  total_copies: number | null;
+}
+
 class AdminApiClient {
   // Fallback memory storage when localStorage is unavailable
   private _memoryToken: string | null = null;
@@ -630,6 +701,47 @@ class AdminApiClient {
       method: "POST",
       body: JSON.stringify({ copies }),
     });
+  }
+
+  // =============================================================================
+  // Print Queue Methods
+  // =============================================================================
+
+  /**
+   * Get current print queue status.
+   * Shows queue length, active jobs, worker status, and pending tasks.
+   */
+  async getPrintQueue(): Promise<ApiResponse<PrintQueueStatus>> {
+    return this.request("/print-queue");
+  }
+
+  /**
+   * Get status of a specific job in the queue.
+   * Returns copy-by-copy status for the job.
+   */
+  async getPrintQueueJob(jobId: string): Promise<ApiResponse<PrintQueueJobStatus>> {
+    return this.request(`/print-queue/job/${jobId}`);
+  }
+
+  /**
+   * Get print queue metrics.
+   * Shows today's statistics and per-printer breakdown.
+   */
+  async getPrintQueueMetrics(): Promise<ApiResponse<PrintQueueMetrics>> {
+    return this.request("/print-queue/metrics");
+  }
+
+  /**
+   * Get recent print queue events.
+   * Returns copy-level events (queued, started, completed, failed).
+   */
+  async getPrintQueueLogs(limit: number = 50): Promise<
+    ApiResponse<{
+      logs: PrintQueueEvent[];
+      count: number;
+    }>
+  > {
+    return this.request(`/print-queue/logs?limit=${limit}`);
   }
 }
 

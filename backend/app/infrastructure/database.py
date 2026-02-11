@@ -114,6 +114,11 @@ class PrintJobModel(Base):
     retry_count = Column(Integer, nullable=False, default=0)
     next_retry_at = Column(DateTime, nullable=True)
 
+    # Multi-copy tracking fields
+    completed_copies = Column(Integer, nullable=False, default=0)
+    current_copy = Column(Integer, nullable=False, default=0)
+    cups_job_ids = Column(Text, nullable=True)  # JSON array of CUPS job IDs
+
     # Relationships
     session = relationship("SessionModel", back_populates="print_jobs")
     events = relationship(
@@ -241,6 +246,25 @@ async def init_db():
                 )
         except Exception:
             pass  # Column already exists or table doesn't exist yet
+
+        # Migration: Add multi-copy tracking columns to print_jobs
+        try:
+            result = await conn.execute(text("PRAGMA table_info(print_jobs)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "completed_copies" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE print_jobs ADD COLUMN completed_copies INTEGER DEFAULT 0 NOT NULL")
+                )
+            if "current_copy" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE print_jobs ADD COLUMN current_copy INTEGER DEFAULT 0 NOT NULL")
+                )
+            if "cups_job_ids" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE print_jobs ADD COLUMN cups_job_ids TEXT")
+                )
+        except Exception:
+            pass  # Columns already exist or table doesn't exist yet
 
     # Seed default settings
     async with async_session() as session:

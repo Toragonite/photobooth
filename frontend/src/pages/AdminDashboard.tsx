@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { LoadingSpinner } from "../components/common";
-import { adminApi, SystemStatus, PrinterInfo } from "../services/adminApi";
+import {
+  adminApi,
+  SystemStatus,
+  PrinterInfo,
+  PrintQueueStatus,
+  PrintQueueMetrics,
+  PrintQueueEvent,
+} from "../services/adminApi";
 
 function PrinterStatusBadge({ status }: { status: string }) {
   const colorMap: Record<string, string> = {
@@ -56,6 +63,187 @@ function PrinterCard({
   );
 }
 
+function CopyStatusBadge({ status }: { status: string }) {
+  const colorMap: Record<string, string> = {
+    queued: "bg-gray-400 text-white",
+    printing: "bg-primary text-white",
+    completed: "bg-secondary text-white",
+    failed: "bg-error text-white",
+  };
+  const cls = colorMap[status] || "bg-gray-300 text-text";
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+function PrintQueueCard({
+  queue,
+  metrics,
+  logs,
+  isLoading,
+}: {
+  queue: PrintQueueStatus | null;
+  metrics: PrintQueueMetrics | null;
+  logs: PrintQueueEvent[];
+  isLoading: boolean;
+}) {
+  const [showLogs, setShowLogs] = useState(false);
+
+  if (isLoading && !queue) {
+    return (
+      <div className="card md:col-span-2">
+        <h2 className="text-xl font-semibold mb-4">Print Queue</h2>
+        <div className="flex items-center justify-center py-8">
+          <LoadingSpinner message="Loading queue status..." />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card md:col-span-2">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">Print Queue</h2>
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-primary animate-pulse" : "bg-secondary"}`} />
+          Auto-refresh (5s)
+        </div>
+      </div>
+
+      {/* Queue Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+        <div className="text-center p-3 bg-gray-50 rounded-lg">
+          <p className="text-2xl font-bold text-primary">
+            {queue?.queue_length ?? 0}
+          </p>
+          <p className="text-xs text-text-muted">Queued</p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 rounded-lg">
+          <p className="text-2xl font-bold text-primary">
+            {queue?.active_jobs ?? 0}
+          </p>
+          <p className="text-xs text-text-muted">Active Jobs</p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 rounded-lg">
+          <p className="text-2xl font-bold text-secondary">
+            {metrics?.today?.completed_copies ?? 0}
+          </p>
+          <p className="text-xs text-text-muted">Completed Today</p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 rounded-lg">
+          <p className="text-2xl font-bold text-error">
+            {metrics?.today?.failed_copies ?? 0}
+          </p>
+          <p className="text-xs text-text-muted">Failed Today</p>
+        </div>
+      </div>
+
+      {/* Worker Status */}
+      {queue?.workers && queue.workers.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-muted mb-2">Printer Workers</h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {queue.workers.map((worker) => (
+              <div
+                key={worker.printer}
+                className={`p-3 rounded-lg border ${
+                  worker.is_busy ? "border-primary bg-primary/5" : "border-gray-200"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{worker.printer}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      worker.is_busy
+                        ? "bg-primary text-white"
+                        : "bg-gray-200 text-text-muted"
+                    }`}
+                  >
+                    {worker.is_busy ? "Printing" : "Idle"}
+                  </span>
+                </div>
+                {worker.current_task && (
+                  <div className="mt-2 text-xs text-text-muted">
+                    Job: {worker.current_task.job_id.slice(0, 8)}... •
+                    Copy {worker.current_task.copy}
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-text-muted">
+                  Today: {worker.completed_today} ✓ / {worker.failed_today} ✗
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Queued Tasks */}
+      {queue?.queued_tasks && queue.queued_tasks.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-muted mb-2">
+            Pending Tasks ({queue.queued_tasks.length})
+          </h3>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {queue.queued_tasks.slice(0, 10).map((task, idx) => (
+              <div
+                key={`${task.job_id}-${idx}`}
+                className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded"
+              >
+                <span className="font-mono text-xs">
+                  {task.job_id.slice(0, 8)}...
+                </span>
+                <span className="text-text-muted">Copy {task.copy}</span>
+                <CopyStatusBadge status="queued" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Logs Toggle */}
+      <div className="border-t pt-3">
+        <button
+          onClick={() => setShowLogs(!showLogs)}
+          className="text-sm text-primary hover:underline"
+        >
+          {showLogs ? "Hide" : "Show"} Recent Activity ({logs.length} events)
+        </button>
+        {showLogs && logs.length > 0 && (
+          <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+            {logs.slice(0, 20).map((event, idx) => (
+              <div
+                key={`${event.job_id}-${event.timestamp}-${idx}`}
+                className="flex items-start gap-2 text-xs p-2 bg-gray-50 rounded"
+              >
+                <span className="text-text-muted whitespace-nowrap">
+                  {new Date(event.timestamp).toLocaleTimeString()}
+                </span>
+                <CopyStatusBadge
+                  status={
+                    event.event_type.includes("completed")
+                      ? "completed"
+                      : event.event_type.includes("failed")
+                        ? "failed"
+                        : event.event_type.includes("started")
+                          ? "printing"
+                          : "queued"
+                  }
+                />
+                <span className="flex-1">{event.message}</span>
+                {event.printer && (
+                  <span className="text-text-muted">[{event.printer}]</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboard() {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -63,6 +251,13 @@ export function AdminDashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Print queue state
+  const [queueStatus, setQueueStatus] = useState<PrintQueueStatus | null>(null);
+  const [queueMetrics, setQueueMetrics] = useState<PrintQueueMetrics | null>(null);
+  const [queueLogs, setQueueLogs] = useState<PrintQueueEvent[]>([]);
+  const [isQueueLoading, setIsQueueLoading] = useState(false);
+  const queueIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -83,6 +278,32 @@ export function AdminDashboard() {
     }
   }, []);
 
+  // Fetch print queue data
+  const fetchQueueData = useCallback(async () => {
+    try {
+      setIsQueueLoading(true);
+      const [queueRes, metricsRes, logsRes] = await Promise.all([
+        adminApi.getPrintQueue(),
+        adminApi.getPrintQueueMetrics(),
+        adminApi.getPrintQueueLogs(50),
+      ]);
+
+      if (queueRes.success && queueRes.data) {
+        setQueueStatus(queueRes.data);
+      }
+      if (metricsRes.success && metricsRes.data) {
+        setQueueMetrics(metricsRes.data);
+      }
+      if (logsRes.success && logsRes.data) {
+        setQueueLogs(logsRes.data.logs || []);
+      }
+    } catch (err) {
+      console.error("Queue fetch failed:", err);
+    } finally {
+      setIsQueueLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     // Check auth using adminApi helper
     if (!adminApi.isAuthenticated()) {
@@ -91,7 +312,17 @@ export function AdminDashboard() {
     }
 
     fetchStatus();
-  }, [navigate, fetchStatus]);
+    fetchQueueData();
+
+    // Set up 5-second polling for queue data
+    queueIntervalRef.current = setInterval(fetchQueueData, 5000);
+
+    return () => {
+      if (queueIntervalRef.current) {
+        clearInterval(queueIntervalRef.current);
+      }
+    };
+  }, [navigate, fetchStatus, fetchQueueData]);
 
   const handleLogout = async () => {
     try {
@@ -269,6 +500,14 @@ export function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Print Queue Monitor */}
+          <PrintQueueCard
+            queue={queueStatus}
+            metrics={queueMetrics}
+            logs={queueLogs}
+            isLoading={isQueueLoading}
+          />
 
           {/* Quick Actions */}
           <div className="card lg:col-span-2">

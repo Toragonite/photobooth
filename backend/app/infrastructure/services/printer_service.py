@@ -766,3 +766,65 @@ class PrinterService(PrinterPort):
     async def select_printer(self) -> Optional[str]:
         """Select the best available printer (PrinterPort interface)."""
         return self._select_printer_sync()
+
+    # ─────────────────────────────────────────────────────────────────
+    # Queue-based copy processing methods
+    # ─────────────────────────────────────────────────────────────────
+
+    async def print_single_copy(
+        self, file_path: str, printer_name: str
+    ) -> PrintResult:
+        """Submit exactly one copy to the specified printer.
+
+        This is used by the queue manager to print one copy at a time,
+        bypassing the CUPS copies option which may be ignored by some printers.
+        """
+        return await self.print_file(file_path, copies=1, printer_name=printer_name)
+
+    async def wait_for_job_completion(
+        self, cups_job_id: int, timeout_seconds: int = 120
+    ) -> tuple:
+        """Wait for a CUPS job to complete.
+
+        Args:
+            cups_job_id: The CUPS job ID to monitor
+            timeout_seconds: Maximum time to wait (default 120 seconds)
+
+        Returns:
+            Tuple of (success: bool, status_message: str)
+        """
+        poll_interval = 2
+        elapsed = 0
+        physical_print_time = 25  # Canon Selphy takes ~25 seconds per print
+
+        while elapsed < timeout_seconds:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            status = await self.get_job_status(cups_job_id)
+            logger.debug(f"CUPS job {cups_job_id} status: {status}")
+
+            if status == "completed":
+                # CUPS reports completed when data is sent to printer
+                # Wait additional time for physical printing
+                logger.info(
+                    f"CUPS job {cups_job_id} data sent, "
+                    f"waiting {physical_print_time}s for physical print"
+                )
+                await asyncio.sleep(physical_print_time)
+                return (True, "completed")
+
+            elif status in ("cancelled", "failed", "aborted"):
+                return (False, status)
+
+            elif status == "unknown":
+                # Job might have completed and been removed from queue
+                logger.info(
+                    f"CUPS job {cups_job_id} not in queue, assuming completed"
+                )
+                await asyncio.sleep(physical_print_time)
+                return (True, "completed")
+
+        # Timeout
+        logger.warning(f"CUPS job {cups_job_id} timed out after {timeout_seconds}s")
+        return (False, "timeout")

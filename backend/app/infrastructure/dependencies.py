@@ -32,6 +32,7 @@ from app.application.use_cases.system import (CleanupStorageUseCase,
                                               HealthCheckUseCase)
 from app.infrastructure.container import Container, create_request_container
 from app.infrastructure.database import get_db
+from app.infrastructure.services import get_queue_manager
 
 # ─────────────────────────────────────────────────────────────────
 # Container dependency
@@ -176,10 +177,12 @@ async def get_submit_print_job_use_case(
     printer: PrinterServiceDep,
 ) -> SubmitPrintJobUseCase:
     """Get SubmitPrintJob use case."""
+    queue_manager = get_queue_manager()
     return SubmitPrintJobUseCase(
         session_repository=session_repo,
         print_job_repository=job_repo,
         printer=printer,
+        queue_manager=queue_manager,
     )
 
 

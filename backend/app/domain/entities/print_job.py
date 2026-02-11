@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from ..exceptions import PrintJobError
 from ..value_objects import ErrorCode, JobId, PrintStatus, SessionId
@@ -10,7 +10,7 @@ from ..value_objects import ErrorCode, JobId, PrintStatus, SessionId
 
 @dataclass
 class PrintJob:
-    """A print job with full lifecycle."""
+    """A print job with full lifecycle and multi-copy tracking."""
 
     id: JobId
     session_id: SessionId
@@ -26,6 +26,11 @@ class PrintJob:
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
+
+    # Multi-copy tracking fields
+    completed_copies: int = 0  # Number of successfully printed copies
+    current_copy: int = 0  # Currently processing copy (1-indexed for display)
+    cups_job_ids: List[int] = field(default_factory=list)  # History of all CUPS job IDs
 
     MAX_RETRIES = 3
     MAX_COPIES = 3
@@ -145,14 +150,70 @@ class PrintJob:
 
     @property
     def progress_percent(self) -> int:
-        """Calculate progress percentage."""
-        progress_map = {
-            PrintStatus.PENDING: 0,
-            PrintStatus.PROCESSING: 25,
-            PrintStatus.PRINTING: 75,
-            PrintStatus.COMPLETED: 100,
-            PrintStatus.RETRY_PENDING: 50,
-            PrintStatus.FAILED: 0,
-            PrintStatus.CANCELLED: 0,
-        }
-        return progress_map.get(self.status, 0)
+        """Calculate progress percentage based on completed copies."""
+        if self.status == PrintStatus.COMPLETED:
+            return 100
+        if self.status in (PrintStatus.FAILED, PrintStatus.CANCELLED):
+            return 0
+        if self.copies == 0:
+            return 0
+
+        # Base progress on completed copies
+        copy_progress = (self.completed_copies / self.copies) * 100
+
+        # Add partial progress for current copy being printed
+        if self.status == PrintStatus.PRINTING and self.current_copy > 0:
+            copy_progress += (1 / self.copies) * 50  # 50% of current copy
+
+        return min(int(copy_progress), 99)
+
+    @property
+    def copy_progress(self) -> Tuple[int, int]:
+        """Return (completed, total) copies."""
+        return (self.completed_copies, self.copies)
+
+    @property
+    def copy_progress_str(self) -> str:
+        """Return copy progress as string, e.g., '1/3'."""
+        return f"{self.completed_copies}/{self.copies}"
+
+    def start_copy(self, copy_number: int) -> None:
+        """Start processing a specific copy."""
+        self.current_copy = copy_number
+        if self.status == PrintStatus.PENDING:
+            self.status = PrintStatus.PROCESSING
+            self.started_at = datetime.now()
+        elif self.status not in (PrintStatus.PROCESSING, PrintStatus.PRINTING):
+            raise PrintJobError(f"Cannot start copy in {self.status} state")
+
+    def complete_copy(self, cups_job_id: Optional[int] = None) -> None:
+        """Mark current copy as complete."""
+        self.completed_copies += 1
+        if cups_job_id and cups_job_id not in self.cups_job_ids:
+            self.cups_job_ids.append(cups_job_id)
+
+        # Check if all copies are done
+        if self.completed_copies >= self.copies:
+            self.status = PrintStatus.COMPLETED
+            self.completed_at = datetime.now()
+        else:
+            # Ready for next copy
+            self.status = PrintStatus.PROCESSING
+
+    def update_cups_job_id(self, cups_job_id: int) -> None:
+        """Update the current CUPS job ID."""
+        self.cups_job_id = cups_job_id
+        if cups_job_id not in self.cups_job_ids:
+            self.cups_job_ids.append(cups_job_id)
+        self.status = PrintStatus.PRINTING
+
+    def user_retry_remaining(self) -> None:
+        """User-initiated retry for remaining copies only (doesn't reset completed_copies)."""
+        if self.status != PrintStatus.FAILED:
+            raise PrintJobError("Can only retry failed jobs")
+
+        # Don't reset completed_copies - continue from where we left off
+        self.retry_count = 0
+        self.error_code = None
+        self.error_message = None
+        self.status = PrintStatus.PENDING
